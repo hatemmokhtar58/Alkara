@@ -46,9 +46,11 @@ const Users = () => {
     const handleOpenModal = (u = null) => {
         if (u) {
             setEditingUser(u);
-            setUsername(u.username);
-            setRole(u.role);
-            setUserPerms(u.permissions ? u.permissions.split(',') : []);
+            setUsername(u.username || u.Username);
+            setRole(u.role || u.Role || 'Employee');
+            const p = u.permissions || u.Permissions || '';
+            setUserPerms(p ? p.split(',') : []);
+
         } else {
             setEditingUser(null);
             setUsername('');

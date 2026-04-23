@@ -35,13 +35,33 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
 
   const [userRole, setUserRole] = useState(() => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user).role : 'Employee';
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return 'Employee';
+    const u = JSON.parse(userStr);
+    return u.role || u.Role || 'Employee';
   });
   const [userPermissions, setUserPermissions] = useState(() => {
-    const user = localStorage.getItem('user');
-    return user && JSON.parse(user).permissions ? JSON.parse(user).permissions.split(',') : [];
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return [];
+    const u = JSON.parse(userStr);
+    const p = u.permissions || u.Permissions || '';
+    return p ? p.split(',') : [];
   });
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      setUserRole(u.role || u.Role || 'Employee');
+      const p = u.permissions || u.Permissions || '';
+      setUserPermissions(p ? p.split(',') : []);
+    } else {
+      setUserRole('Employee');
+      setUserPermissions([]);
+    }
+  }, [isAuthenticated]);
+
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleLanguage = () => {
@@ -104,13 +124,18 @@ function App() {
           <Link to="/" onClick={() => { setActivePath('/'); closeSidebar(); }} className={`nav-link ${activePath === '/' ? 'active' : ''}`}>
             <span className="nav-icon">📊</span> {t('Sidebar.Dashboard')}
           </Link>
-          <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem', paddingLeft: '1rem', paddingRight: '1rem', fontSize: '0.8rem', color: 'var(--text-sidebar-muted)', fontWeight: 'bold' }}>{t('Sidebar.Operations')}</div>
-          <Link to="/trip-create" onClick={() => { setActivePath('/trip-create'); closeSidebar(); }} className={`nav-link ${activePath.includes('/trip-create') ? 'active' : ''}`}>
-            <span className="nav-icon">✨</span> {t('Sidebar.CreateTrip')}
-          </Link>
-          <Link to="/trips-log" onClick={() => { setActivePath('/trips-log'); closeSidebar(); }} className={`nav-link ${activePath.includes('/trips-log') ? 'active' : ''}`}>
-            <span className="nav-icon">📋</span> {t('Sidebar.TripsLog')}
-          </Link>
+          {hasPerm('trips') && (
+            <>
+              <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem', paddingLeft: '1rem', paddingRight: '1rem', fontSize: '0.8rem', color: 'var(--text-sidebar-muted)', fontWeight: 'bold' }}>{t('Sidebar.Operations')}</div>
+              <Link to="/trip-create" onClick={() => { setActivePath('/trip-create'); closeSidebar(); }} className={`nav-link ${activePath.includes('/trip-create') ? 'active' : ''}`}>
+                <span className="nav-icon">✨</span> {t('Sidebar.CreateTrip')}
+              </Link>
+              <Link to="/trips-log" onClick={() => { setActivePath('/trips-log'); closeSidebar(); }} className={`nav-link ${activePath.includes('/trips-log') ? 'active' : ''}`}>
+                <span className="nav-icon">📋</span> {t('Sidebar.TripsLog')}
+              </Link>
+            </>
+          )}
+
           {hasPerm('fleet') && (
             <>
               <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem', paddingLeft: '1rem', paddingRight: '1rem', fontSize: '0.8rem', color: 'var(--text-sidebar-muted)', fontWeight: 'bold' }}>{t('Sidebar.ManagementAndCars')}</div>
@@ -173,8 +198,9 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Dashboard userRole={userRole} />} />
-            <Route path="/trip-create" element={<CreateTrip userRole={userRole} />} />
-            <Route path="/trips-log" element={<TripsLog userRole={userRole} />} />
+            <Route path="/trip-create" element={hasPerm('trips') ? <CreateTrip userRole={userRole} /> : <Navigate to="/" />} />
+            <Route path="/trips-log" element={hasPerm('trips') ? <TripsLog userRole={userRole} /> : <Navigate to="/" />} />
+
             <Route path="/drivers" element={hasPerm('fleet') ? <Drivers userRole={userRole} /> : <Navigate to="/" />} />
             <Route path="/customers" element={hasPerm('fleet') ? <Customers /> : <Navigate to="/" />} />
             <Route path="/cars" element={hasPerm('fleet') ? <Cars /> : <Navigate to="/" />} />

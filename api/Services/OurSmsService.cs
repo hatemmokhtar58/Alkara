@@ -23,13 +23,13 @@ namespace api.Services
         {
             try
             {
-                var smsSection = _configuration.GetSection("SmsSettings");
-                var username = smsSection["Username"];
-                var password = smsSection["Password"];
-                var sender = smsSection["Sender"];
-                var baseUrl = smsSection["Url"];
+                var smsSection = _configuration.GetSection("OurSms");
+                var baseUrl = smsSection["ApiUrl"];
+                var token = smsSection["Token"];
+                var sender = smsSection["Src"];
 
-                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(baseUrl))
+                if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(token))
+
                 {
                     _logger.LogError("SMS configuration is missing in appsettings.json.");
                     return false;
@@ -43,13 +43,13 @@ namespace api.Services
                 }
 
                 // URL encode parameters - Mapping parameters to the modern Oursms.com structure
-                // username=@username, token=@password, src=@sender, dests=@phone, body=@message
-                var url = $"{baseUrl}?username={Uri.EscapeDataString(username)}" +
-                          $"&token={Uri.EscapeDataString(password)}" +
+                // username=@username (if needed), token=@token, src=@sender, dests=@phone, body=@message
+                var url = $"{baseUrl}?token={Uri.EscapeDataString(token)}" +
                           $"&src={Uri.EscapeDataString(sender)}" +
                           $"&dests={Uri.EscapeDataString(cleanPhone)}" +
                           $"&body={Uri.EscapeDataString(message)}" +
                           "&return=json";
+
 
                 _logger.LogInformation($"[OurSMS] Sending message to {cleanPhone} via modern API...");
 

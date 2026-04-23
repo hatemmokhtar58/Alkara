@@ -12,9 +12,13 @@ const Dashboard = ({ userRole }) => {
         todayExpenses: 0
     });
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userPermissions = user.permissions ? user.permissions.split(',') : [];
-    const hasFinancePerm = userPermissions.includes('wallet') || userPermissions.includes('reports') || user.role === 'Admin';
+    const userStr = localStorage.getItem('user') || '{}';
+    const user = JSON.parse(userStr);
+    const pStr = user.permissions || user.Permissions || '';
+    const userPermissions = pStr ? pStr.split(',') : [];
+    const role = userRole || user.role || user.Role || 'Employee';
+    const hasFinancePerm = userPermissions.includes('wallet') || userPermissions.includes('reports') || role === 'Admin';
+
 
     useEffect(() => {
         const fetchDashboardData = async () => {

@@ -17,9 +17,13 @@ const Customers = () => {
     const [selectedCustomerStats, setSelectedCustomerStats] = useState(null);
     const [customerStatsData, setCustomerStatsData] = useState(null);
     
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userPermissions = user.permissions ? user.permissions.split(',') : [];
-    const hasFinancePerm = userPermissions.includes('wallet') || userPermissions.includes('reports') || user.role === 'Admin';
+    const userStr = localStorage.getItem('user') || '{}';
+    const user = JSON.parse(userStr);
+    const pStr = user.permissions || user.Permissions || '';
+    const userPermissions = pStr ? pStr.split(',') : [];
+    const role = user.role || user.Role || 'Employee';
+    const hasFinancePerm = userPermissions.includes('wallet') || userPermissions.includes('reports') || role === 'Admin';
+
 
     
     // Edit states
