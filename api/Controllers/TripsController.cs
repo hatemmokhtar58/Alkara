@@ -19,13 +19,41 @@ namespace api.Controllers
 
         // GET: api/Trips
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Trip>>> GetTrips()
+        public async Task<ActionResult> GetTrips()
         {
-            return await _context.Trips
+            var trips = await _context.Trips
                 .Include(t => t.Customer)
                 .Include(t => t.Driver)
                 .Include(t => t.Car)
+                .OrderByDescending(t => t.Id)
+                .Select(t => new {
+                    t.Id,
+                    t.CustomerId,
+                    customer = t.Customer == null ? null : new { t.Customer.Id, t.Customer.Name, t.Customer.Phone, t.Customer.WalletBalance },
+                    t.DriverId,
+                    driver = t.Driver == null ? null : new { t.Driver.Id, t.Driver.Name, t.Driver.Phone, t.Driver.Status },
+                    t.CarId,
+                    car = t.Car == null ? null : new { t.Car.Id, t.Car.Make, t.Car.Model, t.Car.PlateNumber, t.Car.Color, t.Car.Year, t.Car.Status },
+                    t.RequestTime,
+                    t.ScheduledFor,
+                    t.StartTime,
+                    t.EndTime,
+                    t.PickupLocation,
+                    t.DropoffLocation,
+                    t.PricingType,
+                    t.HourlyRate,
+                    t.FixedPrice,
+                    t.DiscountType,
+                    t.DiscountValue,
+                    t.FinalTotal,
+                    t.PaidAmount,
+                    t.Status,
+                    t.PaymentMethod,
+                    t.Notes
+                })
                 .ToListAsync();
+
+            return Ok(trips);
         }
 
         // POST: api/Trips
@@ -81,11 +109,21 @@ namespace api.Controllers
             // Calculate FinalTotal dynamically on completion if using hourly rate
             if (trip.Status == "Completed" && trip.PricingType == "Hourly" && trip.StartTime.HasValue && trip.EndTime.HasValue && trip.HourlyRate.HasValue)
             {
-                var durationHours = (trip.EndTime.Value - trip.StartTime.Value).TotalHours;
-                // تقريب الساعات للأعلى (بحد أدنى ساعة واحدة) زي ما العميل طلب 
-                var billedHours = (decimal)Math.Max(1, Math.Ceiling(durationHours));
+                var totalMinutes = (trip.EndTime.Value - trip.StartTime.Value).TotalMinutes;
+                decimal basePrice;
                 
-                var basePrice = billedHours * trip.HourlyRate.Value;
+                if (totalMinutes <= 60)
+                {
+                    // أول ساعة أو أقل: المبلغ كامل
+                    basePrice = trip.HourlyRate.Value;
+                }
+                else
+                {
+                    // أول ساعة كاملة + باقي الدقائق بالتناسب
+                    var extraMinutes = (decimal)(totalMinutes - 60);
+                    var ratePerMinute = trip.HourlyRate.Value / 60m;
+                    basePrice = trip.HourlyRate.Value + (extraMinutes * ratePerMinute);
+                }
                 
                 // apply discount
                 if (trip.DiscountType == "Amount") basePrice -= trip.DiscountValue;
@@ -102,24 +140,80 @@ namespace api.Controllers
                 trip.FinalTotal = basePrice > 0 ? basePrice : 0;
             }
 
-            // Handle Wallet Payment
-            if (trip.Status == "Completed" && trip.PaymentMethod == "Wallet" && existingTrip.Status != "Completed")
+            // Handle payment and remaining debt when completing trip
+            if (trip.Status == "Completed" && existingTrip.Status != "Completed")
             {
                 var customer = await _context.Customers.FindAsync(trip.CustomerId);
                 if (customer != null)
                 {
-                    // الموجب مبلغ مستحق الدفع على العميل، هينضاف عليه
-                    customer.WalletBalance += trip.FinalTotal;
-                    
-                    // التسجيل في المعاملات المالية
-                    _context.WalletTransactions.Add(new WalletTransaction {
-                        CustomerId = customer.Id,
-                        TripId = trip.Id,
-                        Amount = trip.FinalTotal,
-                        Type = "TripDeduction",
-                        Description = $"خصم قيمة المشوار رقم #{trip.Id}",
-                        TransactionDate = DateTime.Now
-                    });
+                    if (trip.PaymentMethod == "Wallet")
+                    {
+                        // Deduct trip total from wallet credit
+                        // Negative walletBalance = credit, Positive = debt
+                        var credit = customer.WalletBalance < 0 ? Math.Abs(customer.WalletBalance) : 0;
+                        var deductFromWallet = Math.Min(credit, trip.FinalTotal);
+                        
+                        // Add to wallet balance (makes it less negative = deducted credit)
+                        customer.WalletBalance += deductFromWallet;
+                        
+                        _context.WalletTransactions.Add(new WalletTransaction {
+                            CustomerId = customer.Id,
+                            TripId = trip.Id,
+                            Amount = deductFromWallet,
+                            Type = "WalletDeduction",
+                            Description = $"خصم من المحفظة لمشوار #{trip.Id}",
+                            TransactionDate = DateTime.Now
+                        });
+
+                        // If wallet didn't cover full amount, remaining is debt
+                        var remaining = trip.FinalTotal - deductFromWallet;
+                        if (remaining > 0)
+                        {
+                            customer.WalletBalance += remaining;
+                            _context.WalletTransactions.Add(new WalletTransaction {
+                                CustomerId = customer.Id,
+                                TripId = trip.Id,
+                                Amount = remaining,
+                                Type = "Trip",
+                                Description = $"مديونية متبقية من مشوار #{trip.Id}",
+                                TransactionDate = DateTime.Now
+                            });
+                        }
+
+                        trip.PaidAmount = deductFromWallet;
+                    }
+                    else
+                    {
+                        // Cash or Transfer
+                        var remaining = trip.FinalTotal - trip.PaidAmount;
+                        if (remaining > 0)
+                        {
+                            // Customer paid less than total → add difference as debt
+                            customer.WalletBalance += remaining;
+                            _context.WalletTransactions.Add(new WalletTransaction {
+                                CustomerId = customer.Id,
+                                TripId = trip.Id,
+                                Amount = remaining,
+                                Type = "Trip",
+                                Description = $"مديونية مشوار #{trip.Id}",
+                                TransactionDate = DateTime.Now
+                            });
+                        }
+                        else if (remaining < 0)
+                        {
+                            // Customer paid MORE than total → reduce existing debt
+                            var overpayment = Math.Abs(remaining);
+                            customer.WalletBalance -= overpayment;
+                            _context.WalletTransactions.Add(new WalletTransaction {
+                                CustomerId = customer.Id,
+                                TripId = trip.Id,
+                                Amount = overpayment,
+                                Type = "Deposit",
+                                Description = $"سداد مديونية من فائض مشوار #{trip.Id}",
+                                TransactionDate = DateTime.Now
+                            });
+                        }
+                    }
                 }
             }
 
@@ -173,6 +267,34 @@ namespace api.Controllers
             else return BadRequest(new { message = "فشل إرسال الرسالة، يرجى التحقق من سجلات السيرفر (Logs)." });
         }
 
+        // POST: api/Trips/5/depart - إرسال إشعار خروج السائق من المكتب
+        [HttpPost("{id}/depart")]
+        public async Task<IActionResult> DepartTrip(int id)
+        {
+            var trip = await _context.Trips.FindAsync(id);
+            if (trip == null) return NotFound();
+
+            if (trip.Status != "Scheduled" && trip.Status != "Ongoing")
+                return BadRequest(new { message = "لا يمكن إرسال إشعار الخروج إلا للمشاوير المجدولة أو الجارية." });
+
+            var customer = await _context.Customers.FindAsync(trip.CustomerId);
+            var driver = await _context.Drivers.FindAsync(trip.DriverId);
+            var car = await _context.Cars.FindAsync(trip.CarId);
+
+            if (customer == null || string.IsNullOrEmpty(customer.Phone))
+                return BadRequest(new { message = "لا يوجد رقم جوال للعميل." });
+
+            string plateNumber = car?.PlateNumber ?? "";
+            string message = $"عميلنا العزيز تم توجه السيارة {plateNumber} السائق {driver?.Name} {driver?.Phone} الكرى";
+
+            bool success = await _smsService.SendSmsAsync(customer.Phone, message);
+
+            if (success)
+                return Ok(new { message = "تم إرسال إشعار الخروج للعميل بنجاح." });
+            else
+                return BadRequest(new { message = "فشل إرسال الإشعار، يرجى المحاولة مرة أخرى." });
+        }
+
         private async Task SendTripSms(Trip trip, string eventType)
         {
             try
@@ -191,20 +313,20 @@ namespace api.Controllers
                 switch (eventType)
                 {
                     case "Created":
-                        message = $"أهلاً {customer.Name}، تم تأكيد حجز مشوارك من '{pickup}' إلى '{dropoff}' مع السائق {driver?.Name} بسيارة {car?.PlateNumber}. نتمنى لك رحلة سعيدة!";
+                        message = $"عميلنا العزيز تم تأكيد حجز مشوارك من '{pickup}' إلى '{dropoff}' مع السائق {driver?.Name} {driver?.Phone} بسيارة {car?.PlateNumber}. الكرى";
                         break;
                     case "Ongoing":
-                        message = $"أهلاً {customer.Name}، بدأ السائق {driver?.Name} مشوارك الآن من '{pickup}'. نتمنى لك رحلة ممتعة!";
+                        message = $"عميلنا العزيز بدأ السائق {driver?.Name} مشوارك الآن من '{pickup}'. الكرى";
                         break;
                     case "Completed":
-                        message = $"الحمد لله على السلامة {customer.Name}! تم إتمام مشوارك بنجاح. القيمة الإجمالية: {trip.FinalTotal} ريال. شكراً لاختيارك الكرى.";
+                        message = $"عميلنا العزيز تم إتمام مشوارك بنجاح. القيمة الإجمالية: {trip.FinalTotal} ريال. شكراً لاختيارك الكرى";
                         break;
                     case "Cancelled":
-                        message = $"عزيزي {customer.Name}، تم إلغاء مشوارك رقم #{trip.Id} من '{pickup}'. نعتذر عن أي إزعاج.";
+                        message = $"عميلنا العزيز تم إلغاء مشوارك من '{pickup}'. نعتذر عن أي إزعاج. الكرى";
                         break;
                     case "Postponed":
                         string newTime = trip.ScheduledFor?.ToString("dd/MM/yyyy HH:mm") ?? "";
-                        message = $"عزيزي {customer.Name}، تم تحديث موعد مشوارك ليكون في {newTime}. نراك قريباً!";
+                        message = $"عميلنا العزيز تم تحديث موعد مشوارك ليكون في {newTime}. الكرى";
                         break;
                 }
 

@@ -1,5 +1,8 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
@@ -24,46 +27,54 @@ namespace api.Services
             try
             {
                 var smsSection = _configuration.GetSection("OurSms");
-                var baseUrl = smsSection["ApiUrl"];
+                var apiUrl = smsSection["ApiUrl"];
                 var token = smsSection["Token"];
                 var sender = smsSection["Src"];
 
-                if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(token))
-
+                if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(token))
                 {
-                    _logger.LogError("SMS configuration is missing in appsettings.json.");
+                    _logger.LogError("[OurSMS] SMS configuration is missing. Make sure 'OurSms:ApiUrl' and 'OurSms:Token' are set in appsettings.json.");
                     return false;
                 }
 
-                // Format phone number if needed (e.g., ensure it starts with country code, though it usually does from frontend)
-                string cleanPhone = phoneNumber.Replace("+", "").Trim();
+                // Format phone number - ensure it starts with 966 country code
+                string cleanPhone = phoneNumber.Replace("+", "").Replace(" ", "").Trim();
                 if (cleanPhone.StartsWith("05"))
                 {
                     cleanPhone = "966" + cleanPhone.Substring(1);
                 }
+                else if (cleanPhone.StartsWith("5") && cleanPhone.Length == 9)
+                {
+                    cleanPhone = "966" + cleanPhone;
+                }
 
-                // URL encode parameters - Mapping parameters to the modern Oursms.com structure
-                // username=@username (if needed), token=@token, src=@sender, dests=@phone, body=@message
-                var url = $"{baseUrl}?token={Uri.EscapeDataString(token)}" +
-                          $"&src={Uri.EscapeDataString(sender)}" +
-                          $"&dests={Uri.EscapeDataString(cleanPhone)}" +
-                          $"&body={Uri.EscapeDataString(message)}" +
-                          "&return=json";
+                // Build the JSON payload per OurSms modern API spec
+                var payload = new
+                {
+                    src = sender,
+                    dests = new[] { cleanPhone },
+                    body = message
+                };
 
+                var jsonContent = JsonSerializer.Serialize(payload);
+                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                _logger.LogInformation($"[OurSMS] Sending message to {cleanPhone} via modern API...");
+                // Set Bearer token in Authorization header
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-                var response = await _httpClient.GetAsync(url);
-                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"[OurSMS] Sending SMS to {cleanPhone} ...");
+
+                var response = await _httpClient.PostAsync(apiUrl, httpContent);
+                var responseBody = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation($"[OurSMS] Success: {content}");
+                    _logger.LogInformation($"[OurSMS] ✅ Success. Response: {responseBody}");
                     return true;
                 }
                 else
                 {
-                    _logger.LogError($"[OurSMS] Failed. Status: {response.StatusCode}. Content: {content}");
+                    _logger.LogError($"[OurSMS] ❌ Failed. Status: {response.StatusCode}. Response: {responseBody}");
                     return false;
                 }
             }

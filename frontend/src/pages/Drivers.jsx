@@ -9,6 +9,7 @@ const Drivers = ({ userRole }) => {
     const { showToast } = useToast();
     const isAdmin = userRole === 'Admin';
     const [drivers, setDrivers] = useState([]);
+    const [trips, setTrips] = useState([]);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +40,12 @@ const Drivers = ({ userRole }) => {
 
     const fetchDrivers = () => {
         api.get('/Drivers').then(res => setDrivers(res.data)).catch(console.error);
+        api.get('/Trips').then(res => setTrips(res.data)).catch(console.error);
     }
+
+    const driverHasActiveTrip = (driverId) => {
+        return trips.some(t => t.driverId === driverId && t.status === 'Ongoing');
+    };
 
     const handleAdd = async (e) => {
         e.preventDefault();
@@ -54,6 +60,10 @@ const Drivers = ({ userRole }) => {
     };
 
     const handleToggleStatus = async (driver) => {
+        if (driverHasActiveTrip(driver.id)) {
+            showToast(t('Drivers.CannotChangeStatus'), 'error');
+            return;
+        }
         const newStatus = driver.status === 'Available' ? 'Busy' : 'Available';
         try {
             await api.put(`/Drivers/${driver.id}`, { ...driver, status: newStatus });
@@ -215,8 +225,9 @@ const Drivers = ({ userRole }) => {
                                 <td>
                                     <button 
                                         className={`badge ${d.status === 'Available' ? 'badge-success' : 'badge-danger'}`}
-                                        style={{ border: 'none', cursor: 'pointer', padding: '5px 10px' }}
+                                        style={{ border: 'none', cursor: driverHasActiveTrip(d.id) ? 'not-allowed' : 'pointer', padding: '5px 10px', opacity: driverHasActiveTrip(d.id) ? 0.6 : 1 }}
                                         onClick={() => handleToggleStatus(d)}
+                                        title={driverHasActiveTrip(d.id) ? t('Drivers.CannotChangeStatus') : ''}
                                     >
                                         {d.status === 'Available' ? t('Drivers.Available') : t('Drivers.Busy')}
                                     </button>

@@ -37,7 +37,9 @@ namespace api.Models
         
         // Final Status
         public decimal FinalTotal { get; set; }
+        public decimal PaidAmount { get; set; }
         public string Status { get; set; } = "Scheduled"; // Scheduled, Ongoing, Completed, Cancelled
-        public string PaymentMethod { get; set; } = "Cash"; // Cash, Wallet
+        public string PaymentMethod { get; set; } = "Cash"; // Cash, Wallet, Transfer
+        public string? Notes { get; set; }
     }
 }

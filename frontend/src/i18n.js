@@ -60,14 +60,76 @@ const resources = {
       },
       "Dashboard": {
         "Title": "لوحة التحكم السريعة",
-        "ActiveTrips": "المشاوير النشطة حالياً",
+        "ActiveTrips": "مشاوير نشطة",
         "ActiveTripsDesc": "مشاوير جارية أو مجدولة",
-        "AvailableDrivers": "السائقين المتاحين",
+        "AvailableDrivers": "سائقين متاحين",
         "AvailableDriversDesc": "جاهزين لاستقبال الطلبات",
+        "TotalDrivers": "إجمالي السواقين",
         "TodayIncome": "إجمالي دخل اليوم",
         "TodayExpenses": "مصروفات اليوم",
         "NetProfit": "صافي ربح اليوم (الدخل - المصروفات)",
-        "Currency": "ريال"
+        "Currency": "ريال",
+        "PerHour": "ر/ساعة",
+        "StatusAvailable": "متاح",
+        "StatusBusy": "مشغول",
+        "StatusScheduled": "مجدول",
+        "NoDrivers": "لا يوجد سواقين مسجلين",
+        "Col": {
+          "Driver": "السائق",
+          "Status": "الحالة",
+          "Customer": "العميل",
+          "Phone": "رقم الجوال",
+          "Rate": "المعدل",
+          "Departure": "خروج",
+          "EndTime": "وقت",
+          "Location": "المكان",
+          "Car": "السيارة"
+        },
+        "Btn": {
+          "NewTrip": "مشوار جديد",
+          "Start": "مباشرة",
+          "Depart": "خروج من مكتب",
+          "CloseTrip": "إغلاق مشوار",
+          "CancelTrip": "إلغاء مشوار",
+          "ConfirmCancel": "هل أنت متأكد من إلغاء المشوار؟"
+        },
+        "Modal": {
+          "Title": "اغلاق المشوار",
+          "PaymentMethod": "طريقة الدفع",
+          "Cash": "كاش نقدي",
+          "Wallet": "خصم من المحفظة",
+          "Transfer": "تحويل للادارة",
+          "Confirm": "تاكيد الاغلاق",
+          "NewCustomer": "عميل جديد - ادخل الاسم",
+          "EnterName": "اكتب اسم العميل",
+          "WalletBalance": "المديونية",
+          "StartTime": "من وقت",
+          "EndTime": "الى وقت",
+          "Duration": "عدد الساعات",
+          "HoursCost": "قيمة الساعات",
+          "Discount": "قيمة الخصم",
+          "ExtraCharge": "قيمة اضافية",
+          "TripTotal": "اجمالي المشوار",
+          "PaidAmount": "المبلغ المدفوع",
+          "RemainingDebt": "المتبقي (مديونية)",
+          "WalletCredit": "رصيد المحفظة",
+          "WalletDeduct": "سيتم خصم",
+          "WalletAfter": "المتبقي بعد الخصم",
+          "WalletNotEnough": "رصيد المحفظة لا يكفي - الباقي سيضاف كمديونية",
+          "Notes": "ملاحظات",
+          "NotesPlaceholder": "اكتب ملاحظات ان وجدت"
+        },
+        "Msg": {
+          "TripStarted": "تم بدء المشوار بنجاح! السائق في الطريق",
+          "TripClosed": "تم إغلاق المشوار بنجاح! الحمد لله على السلامة",
+          "TripCancelled": "تم إلغاء المشوار",
+          "TripCreated": "تم حجز المشوار بنجاح!",
+          "SelectDriver": "اختر سائق من الجدول أولاً",
+          "FillRequired": "يرجى إدخال رقم الجوال",
+          "EnterName": "يرجى إدخال اسم العميل",
+          "EnterPaidAmount": "يرجى إدخال المبلغ المدفوع",
+          "DepartSent": "تم إرسال إشعار الخروج للعميل بنجاح"
+        }
       },
       "Expenses": {
         "Other": "مشتريات أخرى",
@@ -149,7 +211,9 @@ const resources = {
         "SearchBtn": "بحث"
       },
       "CreateExpense": {
-        "Title": "إضافة مصروف جديد",
+        "Title": "تعبئة بنزين",
+        "Driver": "السائق",
+        "SelectDriver": "-- إختر السائق --",
         "Car": "السيارة الخاصة بالمصروف",
         "SelectCar": "-- إختر السيارة --",
         "Category": "نوع المصروف",
@@ -164,10 +228,9 @@ const resources = {
       "ExpensesLog": {
         "Title": "سجل المصروفات",
         "Date": "التاريخ",
-        "Car": "السيارة",
+        "Driver": "السائق",
         "Item": "البند",
         "Amount": "المبلغ",
-        "Note": "البيان المالي",
         "Empty": "لم يتم تسجيل أي مصروفات بعد"
       },
       "Customers": {
@@ -244,7 +307,8 @@ const resources = {
         "EditBtn": "تعديل",
         "DeleteBtn": "حذف",
         "EditTitle": "تعديل بيانات السائق",
-        "DeleteConfirm": "هل أنت متأكد من حذف السائق؟"
+        "DeleteConfirm": "هل أنت متأكد من حذف السائق؟",
+        "CannotChangeStatus": "لا يمكن تغيير حالة السائق وهو في مشوار جاري"
       },
       "Wallet": {
         "Title": "محفظة العملاء (المديونيات والسداد)",
@@ -413,14 +477,76 @@ const resources = {
       },
       "Dashboard": {
         "Title": "Quick Dashboard",
-        "ActiveTrips": "Currently Active Trips",
+        "ActiveTrips": "Active Trips",
         "ActiveTripsDesc": "Ongoing or scheduled trips",
-        "AvailableDrivers": "Available Drivers",
+        "AvailableDrivers": "Available",
         "AvailableDriversDesc": "Ready to receive orders",
+        "TotalDrivers": "Total Drivers",
         "TodayIncome": "Total Today Income",
         "TodayExpenses": "Today Expenses",
         "NetProfit": "Today Net Profit (Income - Expenses)",
-        "Currency": "SAR"
+        "Currency": "SAR",
+        "PerHour": "SAR/hr",
+        "StatusAvailable": "Available",
+        "StatusBusy": "Busy",
+        "StatusScheduled": "Scheduled",
+        "NoDrivers": "No drivers registered",
+        "Col": {
+          "Driver": "Driver",
+          "Status": "Status",
+          "Customer": "Customer",
+          "Phone": "Phone",
+          "Rate": "Rate",
+          "Departure": "Departure",
+          "EndTime": "End",
+          "Location": "Location",
+          "Car": "Car"
+        },
+        "Btn": {
+          "NewTrip": "New Trip",
+          "Start": "Start",
+          "Depart": "Departed Office",
+          "CloseTrip": "Close Trip",
+          "CancelTrip": "Cancel Trip",
+          "ConfirmCancel": "Are you sure you want to cancel this trip?"
+        },
+        "Modal": {
+          "Title": "Close Trip",
+          "PaymentMethod": "Payment Method",
+          "Cash": "Cash",
+          "Wallet": "Deduct from Wallet",
+          "Transfer": "Transfer to Admin",
+          "Confirm": "Confirm Close",
+          "NewCustomer": "New Customer - Enter Name",
+          "EnterName": "Type customer name",
+          "WalletBalance": "Outstanding Balance",
+          "StartTime": "Start Time",
+          "EndTime": "End Time",
+          "Duration": "Duration",
+          "HoursCost": "Hours Cost",
+          "Discount": "Discount",
+          "ExtraCharge": "Extra Charge",
+          "TripTotal": "Trip Total",
+          "PaidAmount": "Amount Paid",
+          "RemainingDebt": "Remaining (Debt)",
+          "WalletCredit": "Wallet Credit",
+          "WalletDeduct": "Will Deduct",
+          "WalletAfter": "After Deduction",
+          "WalletNotEnough": "Wallet balance not enough - remaining will be added as debt",
+          "Notes": "Notes",
+          "NotesPlaceholder": "Write notes if any"
+        },
+        "Msg": {
+          "TripStarted": "Trip started successfully! Driver is on the way",
+          "TripClosed": "Trip closed successfully!",
+          "TripCancelled": "Trip has been cancelled",
+          "TripCreated": "Trip booked successfully!",
+          "SelectDriver": "Select a driver from the table first",
+          "FillRequired": "Please enter the phone number",
+          "EnterName": "Please enter the customer name",
+          "EnterPaidAmount": "Please enter the paid amount",
+          "DepartSent": "Departure notification sent to customer successfully"
+        }
       },
       "Expenses": {
         "Other": "Other Purchases",
@@ -502,7 +628,9 @@ const resources = {
         "SearchBtn": "Search"
       },
       "CreateExpense": {
-        "Title": "Add New Expense",
+        "Title": "Fuel Fill-up",
+        "Driver": "Driver",
+        "SelectDriver": "-- Select Driver --",
         "Car": "Car (Optional)",
         "SelectCar": "-- Select Car --",
         "Category": "Expense Category",
@@ -517,10 +645,9 @@ const resources = {
       "ExpensesLog": {
         "Title": "Expenses Log",
         "Date": "Date",
-        "Car": "Car",
+        "Driver": "Driver",
         "Item": "Item",
         "Amount": "Amount",
-        "Note": "Financial Note",
         "Empty": "No expenses recorded yet"
       },
       "Customers": {
@@ -597,7 +724,8 @@ const resources = {
         "EditBtn": "Edit",
         "DeleteBtn": "Delete",
         "EditTitle": "Edit Driver Details",
-        "DeleteConfirm": "Are you sure you want to delete this driver?"
+        "DeleteConfirm": "Are you sure you want to delete this driver?",
+        "CannotChangeStatus": "Cannot change driver status while on an active trip"
       },
       "Wallet": {
         "Title": "Customers Wallet (Debts & Payments)",

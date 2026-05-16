@@ -162,7 +162,7 @@ const CreateTrip = ({ userRole }) => {
                         )}
                     </div>
                     <div className="form-actions">
-                        <button type="submit" className="btn btn-large btn-large-blue">✨ {t('CreateTrip.SaveBtn')}</button>
+                        <button type="submit" className="btn btn-large btn-large-blue">{t('CreateTrip.SaveBtn')}</button>
                     </div>
                 </form>
             </div>

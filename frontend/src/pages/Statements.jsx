@@ -401,6 +401,11 @@ const Statements = () => {
         const filteredExpenses = filterByDate(expenses, 'date');
         const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
+        const getCategoryLabel = (cat) => {
+            if (cat === 'Fuel') return i18n.language === 'ar' ? 'بنزين' : 'Fuel';
+            return cat;
+        };
+
         return (
             <div className="statement-content print-area">
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }} className="print-only">
@@ -413,7 +418,7 @@ const Statements = () => {
                             <tr>
                                 <th>{t('Statements.Expenses.RefId')}</th>
                                 <th>{t('Statements.Expenses.Category')}</th>
-                                <th>{t('Statements.Expenses.Car')}</th>
+                                <th>{t('ExpensesLog.Driver')}</th>
                                 <th>{t('Statements.Expenses.Date')}</th>
                                 <th>{t('Statements.Expenses.Amount')}</th>
                             </tr>
@@ -422,20 +427,21 @@ const Statements = () => {
                             {filteredExpenses.map(exp => (
                                 <tr key={exp.id}>
                                     <td>#{exp.id}</td>
-                                    <td>{t(`Expenses.${exp.category}`) || exp.category}</td>
-                                    <td>{exp.car ? exp.car.plateNumber : '-'}</td>
+                                    <td><span className="badge badge-warning">{getCategoryLabel(exp.category)}</span></td>
+                                    <td>{exp.driverName || '-'}</td>
                                     <td>{formatDate(exp.date)}</td>
                                     <td style={{fontWeight: 'bold', color: 'var(--danger-color)'}}>{exp.amount} {t('Dashboard.Currency')}</td>
                                 </tr>
                             ))}
                         </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colSpan="4" style={{fontWeight: 'bold', textAlign: 'end'}}>{t('Statements.Expenses.GrandTotal')}</td>
-                                <td style={{fontWeight: 'bold', color: 'var(--danger-color)'}}>{total} {t('Dashboard.Currency')}</td>
-                            </tr>
-                        </tfoot>
                     </table>
+                </div>
+
+                <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ padding: '0.5rem 1rem', background: '#f9fafb', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                        <span style={{ color: '#6b7280', marginLeft: '8px' }}>{t('Statements.Expenses.GrandTotal')}</span>
+                        <span style={{ fontWeight: '700', color: '#ef4444' }}> {total} {t('Dashboard.Currency')}</span>
+                    </div>
                 </div>
             </div>
         );

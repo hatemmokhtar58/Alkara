@@ -11,6 +11,7 @@ const TripsLog = ({ userRole }) => {
     const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
     const isAdmin = userRole === 'Admin';
     const [trips, setTrips] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [drivers, setDrivers] = useState([]); // Array to store drivers for editing
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -51,6 +52,8 @@ const TripsLog = ({ userRole }) => {
             setDrivers(driversRes.data);
         } catch (error) {
             console.error("Error fetching data:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -222,6 +225,11 @@ const TripsLog = ({ userRole }) => {
                 </div>
             </div>
             
+            {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem 0' }}>
+                    <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                </div>
+            ) : (
             <div className="table-responsive">
                 <table className="data-table">
                     <thead>
@@ -243,11 +251,11 @@ const TripsLog = ({ userRole }) => {
                                 <td>
                                     {(trip.pickupLocation || trip.dropoffLocation) && (
                                         <div style={{fontSize: '0.95rem', marginBottom: '6px', color: 'var(--primary-color)', fontWeight: 'bold'}}>
-                                            {trip.pickupLocation || '?'} ⬅️ {trip.dropoffLocation || '?'}
+                                            {trip.pickupLocation || '?'} -- {trip.dropoffLocation || '?'}
                                         </div>
                                     )}
                                     <div style={{fontSize: '0.85rem', color: '#6b7280'}}>
-                                        🚗 {trip.driver?.name}
+                                        {trip.driver?.name}
                                     </div>
                                 </td>
                                 <td>
@@ -301,6 +309,7 @@ const TripsLog = ({ userRole }) => {
                     </tbody>
                 </table>
             </div>
+            )}
 
             {/* Modal for Editing */}
             {editModalOpen && (

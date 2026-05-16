@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create a specialized instance of Axios
 const api = axios.create({
-    baseURL: 'http://localhost:5144/api', // The exact port from your .NET backend
+    baseURL: '/api', // Uses Vite proxy in dev, works with ngrok too
     headers: {
         'Content-Type': 'application/json'
     }
