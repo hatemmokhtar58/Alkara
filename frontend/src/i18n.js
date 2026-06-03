@@ -54,6 +54,7 @@ const resources = {
         "ExpensesLog": "سجل المصروفات",
         "Wallet": "محفظة العملاء",
         "Statements": "التقارير وكشوفات الحساب",
+        "Salaries": "الرواتب",
         "Users": "إدارة المستخدمين والصلاحيات",
         "Logout": "تسجيل خروج",
         "SwitchLang": "EN"
@@ -416,6 +417,26 @@ const resources = {
             "users": "إدارة المستخدمين"
         },
         "Actions": "الإجراءات"
+      },
+      "Salaries": {
+        "Title": "رواتب السائقين",
+        "Subtitle": "حساب الرواتب الشهرية (10% من صافي الدخل بعد خصم البنزين)",
+        "Month": "الشهر",
+        "Year": "السنة",
+        "Driver": "السائق",
+        "Phone": "رقم الجوال",
+        "TripsCount": "عدد المشاوير",
+        "TotalIncome": "إجمالي الدخل",
+        "TotalExpenses": "البنزين",
+        "NetIncome": "صافي الدخل",
+        "Percentage": "النسبة",
+        "Salary": "الراتب",
+        "Totals": "الإجمالي",
+        "TotalSalaries": "إجمالي الرواتب",
+        "GrandIncome": "إجمالي الدخل الكلي",
+        "GrandExpenses": "إجمالي البنزين",
+        "Empty": "لا يوجد سائقين لعرض الرواتب",
+        "Note": "الراتب = 10% × (إجمالي دخل المشاوير المكتملة - مصروفات البنزين المسجلة على السائق)"
       }
     }
   },
@@ -471,6 +492,7 @@ const resources = {
         "ExpensesLog": "Expenses Log",
         "Wallet": "Customers Wallet",
         "Statements": "Reports & Statements",
+        "Salaries": "Salaries",
         "Users": "Users & Permissions",
         "Logout": "Logout",
         "SwitchLang": "عربي"
@@ -833,6 +855,26 @@ const resources = {
             "users": "User Management"
         },
         "Actions": "Actions"
+      },
+      "Salaries": {
+        "Title": "Driver Salaries",
+        "Subtitle": "Monthly salary calculation (10% of net income after deducting expenses)",
+        "Month": "Month",
+        "Year": "Year",
+        "Driver": "Driver",
+        "Phone": "Phone",
+        "TripsCount": "Trips",
+        "TotalIncome": "Total Income",
+        "TotalExpenses": "Expenses",
+        "NetIncome": "Net Income",
+        "Percentage": "Rate",
+        "Salary": "Salary",
+        "Totals": "Totals",
+        "TotalSalaries": "Total Salaries",
+        "GrandIncome": "Grand Total Income",
+        "GrandExpenses": "Grand Total Expenses",
+        "Empty": "No drivers to display salaries",
+        "Note": "Salary = 10% × (Total completed trip income - Fuel & maintenance expenses registered to the driver)"
       }
     }
   }

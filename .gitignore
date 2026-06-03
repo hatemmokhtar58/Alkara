@@ -25,3 +25,7 @@ yarn-error.log*
 *.swp
 *.swo
 .DS_Store
+
+# Temp files
+*.sql
+xampp_mysql_err.txt

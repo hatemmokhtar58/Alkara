@@ -12,6 +12,7 @@ import CreateExpense from './pages/CreateExpense';
 import ExpensesLog from './pages/ExpensesLog';
 import Wallet from './pages/Wallet';
 import Statements from './pages/Statements';
+import Salaries from './pages/Salaries';
 import Login from './pages/Login';
 import Users from './pages/Users';
 
@@ -134,6 +135,9 @@ function App() {
             <Link to="/statements" onClick={() => setActivePath('/statements')} className={`navbar-link ${activePath.includes('/statements') ? 'active' : ''}`}>
               <span className="link-text">{t('Sidebar.Statements')}</span>
             </Link>
+            <Link to="/salaries" onClick={() => setActivePath('/salaries')} className={`navbar-link ${activePath.includes('/salaries') ? 'active' : ''}`}>
+              <span className="link-text">{t('Sidebar.Salaries')}</span>
+            </Link>
             {isAdmin && (
               <Link to="/users" onClick={() => setActivePath('/users')} className={`navbar-link ${activePath.includes('/users') ? 'active' : ''}`}>
                 <span className="link-text">{t('Sidebar.Users')}</span>
@@ -189,6 +193,9 @@ function App() {
               <Link to="/statements" onClick={() => { setActivePath('/statements'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statements') ? 'active' : ''}`}>
                 {t('Sidebar.Statements')}
               </Link>
+              <Link to="/salaries" onClick={() => { setActivePath('/salaries'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/salaries') ? 'active' : ''}`}>
+                {t('Sidebar.Salaries')}
+              </Link>
               {isAdmin && (
                 <Link to="/users" onClick={() => { setActivePath('/users'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/users') ? 'active' : ''}`}>
                   {t('Sidebar.Users')}
@@ -219,6 +226,7 @@ function App() {
             <Route path="/expenses-log" element={<ExpensesLog />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/statements" element={<Statements />} />
+            <Route path="/salaries" element={<Salaries />} />
             <Route path="/users" element={isAdmin ? <Users /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

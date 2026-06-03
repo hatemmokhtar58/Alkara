@@ -1296,3 +1296,213 @@ h1.page-title {
     }
 }
 
+/* ============================
+   SALARIES PAGE STYLES
+   ============================ */
+
+.salaries-filter-bar {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1.2rem 1.5rem;
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  border: 1px solid #e5e7eb;
+  box-shadow: var(--shadow-sm);
+}
+
+.salaries-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.salaries-filter-group label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.salaries-select {
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: #f9fafb;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 140px;
+}
+
+.salaries-select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.salaries-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.salary-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.2rem 1.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid;
+  transition: var(--transition);
+}
+
+.salary-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.salary-summary-card .summary-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.salary-summary-card .summary-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.salary-summary-card.total-salaries {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+  border-color: #c4b5fd;
+}
+
+.salary-summary-card.total-income {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  color: #065f46;
+  border-color: #6ee7b7;
+}
+
+.salary-summary-card.total-expenses {
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+/* Table specific styles for salaries */
+.driver-name-cell {
+  font-weight: 800 !important;
+  color: var(--primary-color) !important;
+}
+
+.amount-cell {
+  font-family: 'Outfit', monospace;
+  font-weight: 700 !important;
+}
+
+.amount-cell.income {
+  color: #059669 !important;
+}
+
+.amount-cell.expense {
+  color: #dc2626 !important;
+}
+
+.amount-cell.salary-amount {
+  color: #7c3aed !important;
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+}
+
+.trips-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.percentage-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #6d28d9;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.row-muted {
+  opacity: 0.5;
+}
+
+.totals-row {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
+  border-top: 2px solid #e2e8f0 !important;
+}
+
+.totals-row td {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+  font-size: 1rem !important;
+}
+
+.salaries-note {
+  margin-top: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #fbbf24;
+  border-radius: var(--border-radius);
+  color: #92400e;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-top: 0.3rem;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  border: 1px dashed #d1d5db;
+}
+
+.table-container {
+  background: var(--surface-color);
+  border-radius: var(--border-radius);
+  border: 1px solid #e5e7eb;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  padding: 0.5rem;
+}
+
