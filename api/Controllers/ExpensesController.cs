@@ -23,6 +23,7 @@ namespace api.Controllers
         {
             return await _context.Expenses
                 .Include(e => e.Car)
+                .Include(e => e.Driver)
                 .OrderByDescending(e => e.Date)
                 .ToListAsync();
         }

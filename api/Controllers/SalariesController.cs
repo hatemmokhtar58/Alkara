@@ -15,9 +15,9 @@ namespace api.Controllers
             _context = context;
         }
 
-        // GET: api/Salaries?month=5&year=2026
+        // GET: api/Salaries?month=5&year=2026&percentage=10
         [HttpGet]
-        public async Task<ActionResult<object>> GetSalaries([FromQuery] int? month, [FromQuery] int? year)
+        public async Task<ActionResult<object>> GetSalaries([FromQuery] int? month, [FromQuery] int? year, [FromQuery] decimal percentage = 10)
         {
             var now = DateTime.Now;
             int targetMonth = month ?? now.Month;
@@ -45,18 +45,19 @@ namespace api.Controllers
                 var totalIncome = driverTrips.Sum(t => t.FinalTotal);
                 var totalExpenses = expenses.Where(e => e.DriverId == driver.Id).Sum(e => e.Amount);
                 var netIncome = totalIncome - totalExpenses;
-                var salary = netIncome > 0 ? netIncome * 0.10m : 0;
+                var commission = netIncome > 0 ? netIncome * (percentage / 100m) : 0;
+                var totalSalary = driver.BaseSalary + commission;
 
                 return new
                 {
                     driverId = driver.Id,
                     driverName = driver.Name,
-                    driverPhone = driver.Phone,
+                    baseSalary = driver.BaseSalary,
                     totalIncome = totalIncome,
                     totalExpenses = totalExpenses,
                     netIncome = netIncome,
-                    salaryPercentage = 10,
-                    salary = salary,
+                    commission = commission,
+                    totalSalary = totalSalary,
                     tripsCount = driverTrips.Count
                 };
             }).ToList();
@@ -65,8 +66,17 @@ namespace api.Controllers
             {
                 month = targetMonth,
                 year = targetYear,
+                percentage = percentage,
                 drivers = result,
-                totalSalaries = result.Sum(r => r.salary)
+                totals = new
+                {
+                    totalBaseSalary = result.Sum(r => r.baseSalary),
+                    totalIncome = result.Sum(r => r.totalIncome),
+                    totalExpenses = result.Sum(r => r.totalExpenses),
+                    totalNetIncome = result.Sum(r => r.netIncome),
+                    totalCommission = result.Sum(r => r.commission),
+                    totalSalaries = result.Sum(r => r.totalSalary)
+                }
             });
         }
     }

@@ -24,6 +24,7 @@ const CreateTrip = ({ userRole }) => {
     const [pricingType, setPricingType] = useState(''); // Default empty
     const [fixedPrice, setFixedPrice] = useState('');
     const [hourlyRate, setHourlyRate] = useState('');
+    const [sendSms, setSendSms] = useState(false); // مقفول مؤقتاً - تست
 
     useEffect(() => {
         fetchData();
@@ -44,10 +45,17 @@ const CreateTrip = ({ userRole }) => {
         }
     };
 
+    const toggleSms = () => {
+        setSendSms(prev => {
+            localStorage.setItem('smsEnabled', String(!prev));
+            return !prev;
+        });
+    };
+
     const handleCreateTrip = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/Trips', {
+            await api.post('/Trips' + (!sendSms ? '?skipSms=true' : ''), {
                 customerId: parseInt(customerId),
                 driverId: parseInt(driverId),
                 carId: parseInt(carId),
@@ -161,6 +169,23 @@ const CreateTrip = ({ userRole }) => {
                             </>
                         )}
                     </div>
+
+                    {/* SMS Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '1rem 0 0.5rem', padding: '0.8rem 1rem', background: sendSms ? 'rgba(79, 70, 229, 0.05)' : 'var(--gray-50)', borderRadius: '10px', border: `1px solid ${sendSms ? 'var(--primary-color)' : 'var(--gray-200)'}`, cursor: 'pointer', transition: 'all 0.3s ease', userSelect: 'none' }} onClick={toggleSms}>
+                        <div style={{
+                            width: '22px', height: '22px', borderRadius: '6px',
+                            border: `2px solid ${sendSms ? 'var(--primary-color)' : 'var(--gray-300)'}`,
+                            background: sendSms ? 'var(--primary-color)' : 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'all 0.3s ease', flexShrink: 0
+                        }}>
+                            {sendSms && <span style={{ color: 'white', fontSize: '14px', fontWeight: '700' }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize: '0.95rem', fontWeight: '600', color: sendSms ? 'var(--primary-color)' : 'var(--gray-500)' }}>
+                            {sendSms ? '📩' : '🔕'} {t('Dashboard.SmsToggle')}
+                        </span>
+                    </div>
+
                     <div className="form-actions">
                         <button type="submit" className="btn btn-large btn-large-blue">{t('CreateTrip.SaveBtn')}</button>
                     </div>

@@ -183,7 +183,7 @@ const Cars = () => {
             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'}
             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'}
             >
-                <div style={{ padding: '0 12px', color: '#a0aec0', display: 'flex' }}>
+                <div style={{ padding: '0 12px', color: 'var(--gray-400)', display: 'flex' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -202,7 +202,7 @@ const Cars = () => {
                         fontSize: '0.95rem', 
                         outline: 'none', 
                         background: 'transparent',
-                        color: '#2d3748',
+                        color: 'var(--text-dark)',
                         fontFamily: 'inherit',
                         fontWeight: '500'
                     }}
@@ -210,7 +210,7 @@ const Cars = () => {
                 
                 <div style={{
                     marginLeft: '4px',
-                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #2b6cb0 100%)',
+                    background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
                     color: 'white',
                     padding: '8px 20px',
                     borderRadius: '8px',
@@ -259,7 +259,7 @@ const Cars = () => {
                                     </button>
                                 </td>
                                 <td>
-                                    <button className="btn btn-secondary" style={{padding: '4px 10px', fontSize: '13px', background: '#3b82f6', color: 'white'}} onClick={() => handleViewStats(c)}>
+                                    <button className="btn btn-secondary" style={{padding: '4px 10px', fontSize: '13px', background: 'var(--primary-color)', color: 'white'}} onClick={() => handleViewStats(c)}>
                                         {t('Cars.StatsBtn')}
                                     </button>
                                 </td>
@@ -267,7 +267,7 @@ const Cars = () => {
                                     <div style={{display: 'flex', gap: '5px'}}>
                                         <button 
                                             className="btn btn-secondary" 
-                                            style={{padding: '5px 8px', fontSize: '11px', background: '#e2e8f0', color: '#4a5568'}}
+                                            style={{padding: '5px 8px', fontSize: '11px', background: 'var(--gray-200)', color: 'var(--gray-600)'}}
                                             onClick={() => handleEditClick(c)}
                                         >
                                             {t('Common.Edit')}
@@ -293,14 +293,14 @@ const Cars = () => {
                 <div className="modal-overlay">
                     <div className="modal-content" style={{maxWidth: '850px', padding: '40px', borderRadius: '16px'}}>
                         
-                        <div style={{borderBottom: '1px solid #e2e8f0', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <div style={{borderBottom: '1px solid var(--gray-200)', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                             <h2 style={{color: 'var(--primary-color)', margin: 0, fontSize: '1.5rem', fontWeight: 'bold'}}>
                                     {t('Drivers.StatsModalTitle')} 
-                                    <span style={{color: '#64748b', fontSize: '1.1rem', marginRight: '10px', fontWeight: 'normal'}}>
+                                    <span style={{color: 'var(--gray-500)', fontSize: '1.1rem', marginRight: '10px', fontWeight: 'normal'}}>
                                         ( {selectedCarStats.make} {selectedCarStats.model} )
                                     </span>
                                 </h2>
-                                <span style={{fontSize: '0.9rem', backgroundColor: '#f1f5f9', color: '#334155', padding: '6px 12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid #cbd5e1'}}>
+                                <span style={{fontSize: '0.9rem', backgroundColor: 'var(--gray-100)', color: 'var(--gray-700)', padding: '6px 12px', borderRadius: '8px', fontWeight: 'bold', border: '1px solid var(--gray-300)'}}>
                                     {t('Cars.Plate')}: {selectedCarStats.plateNumber}
                                 </span>
                         </div>
@@ -308,35 +308,35 @@ const Cars = () => {
                         <div style={{display: 'flex', gap: '25px'}}>
                             
                             {/* Trips Area */}
-                            <div style={{flex: 1, backgroundColor: '#f8fafc', padding: '25px', borderRadius: '16px', border: '1px solid #e2e8f0'}}>
+                            <div style={{flex: 1, backgroundColor: 'var(--gray-50)', padding: '25px', borderRadius: '16px', border: '1px solid var(--gray-200)'}}>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px'}}>
-                                    <div style={{width: '45px', height: '45px', borderRadius: '12px', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem'}}>
+                                    <div style={{width: '45px', height: '45px', borderRadius: '12px', backgroundColor: 'var(--primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem'}}>
                                         📍
                                     </div>
-                                    <h3 style={{margin: 0, fontSize: '1.25rem', color: '#1e293b'}}>{t('Drivers.TotalTrips')}</h3>
+                                    <h3 style={{margin: 0, fontSize: '1.25rem', color: 'var(--gray-800)'}}>{t('Drivers.TotalTrips')}</h3>
                                 </div>
                                 
                                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
-                                    <p style={{color: '#64748b', fontSize: '0.95rem', marginBottom: '8px'}}>{t('Statements.Tabs.Trips')}</p>
-                                    <p style={{fontSize: '3rem', fontWeight: 'bold', color: '#0f172a', margin: 0, lineHeight: 1}}>{carStatsData?.trips?.total}</p>
+                                    <p style={{color: 'var(--gray-500)', fontSize: '0.95rem', marginBottom: '8px'}}>{t('Statements.Tabs.Trips')}</p>
+                                    <p style={{fontSize: '3rem', fontWeight: 'bold', color: 'var(--gray-900)', margin: 0, lineHeight: 1}}>{carStatsData?.trips?.total}</p>
                                 </div>
 
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px'}}>
-                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
-                                        <span style={{color: '#64748b', fontSize: '0.9rem'}}>{t('Statements.Ranges.Today')}</span>
-                                        <span style={{fontWeight: 'bold', color: '#3b82f6', fontSize: '1.2rem'}}>{carStatsData?.trips?.today}</span>
+                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
+                                        <span style={{color: 'var(--gray-500)', fontSize: '0.9rem'}}>{t('Statements.Ranges.Today')}</span>
+                                        <span style={{fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '1.2rem'}}>{carStatsData?.trips?.today}</span>
                                     </div>
-                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
-                                        <span style={{color: '#64748b', fontSize: '0.9rem'}}>{t('Drivers.WeekIncome')}</span>
-                                        <span style={{fontWeight: 'bold', color: '#3b82f6', fontSize: '1.2rem'}}>{carStatsData?.trips?.week}</span>
+                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
+                                        <span style={{color: 'var(--gray-500)', fontSize: '0.9rem'}}>{t('Drivers.WeekIncome')}</span>
+                                        <span style={{fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '1.2rem'}}>{carStatsData?.trips?.week}</span>
                                     </div>
-                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
-                                        <span style={{color: '#64748b', fontSize: '0.9rem'}}>{t('Statements.Ranges.ThisMonth')}</span>
-                                        <span style={{fontWeight: 'bold', color: '#3b82f6', fontSize: '1.2rem'}}>{carStatsData?.trips?.month}</span>
+                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
+                                        <span style={{color: 'var(--gray-500)', fontSize: '0.9rem'}}>{t('Statements.Ranges.ThisMonth')}</span>
+                                        <span style={{fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '1.2rem'}}>{carStatsData?.trips?.month}</span>
                                     </div>
-                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
-                                        <span style={{color: '#64748b', fontSize: '0.9rem'}}>{t('Statements.Ranges.ThisYear')}</span>
-                                        <span style={{fontWeight: 'bold', color: '#3b82f6', fontSize: '1.2rem'}}>{carStatsData?.trips?.year}</span>
+                                    <div style={{backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'}}>
+                                        <span style={{color: 'var(--gray-500)', fontSize: '0.9rem'}}>{t('Statements.Ranges.ThisYear')}</span>
+                                        <span style={{fontWeight: 'bold', color: 'var(--primary-color)', fontSize: '1.2rem'}}>{carStatsData?.trips?.year}</span>
                                     </div>
                                 </div>
                             </div>
@@ -382,7 +382,7 @@ const Cars = () => {
                         </div>
 
                         <div style={{marginTop: '30px', textAlign: 'center'}}>
-                            <button className="btn" onClick={() => setStatsModalOpen(false)} style={{backgroundColor: '#f1f5f9', color: '#334155', padding: '10px 40px', fontSize: '1.1rem', fontWeight: 'bold', border: '1px solid #cbd5e1', borderRadius: '8px'}}>{t('Common.Close')}</button>
+                            <button className="btn" onClick={() => setStatsModalOpen(false)} style={{backgroundColor: 'var(--gray-100)', color: 'var(--gray-700)', padding: '10px 40px', fontSize: '1.1rem', fontWeight: 'bold', border: '1px solid var(--gray-300)', borderRadius: '8px'}}>{t('Common.Close')}</button>
                         </div>
                     </div>
                 </div>

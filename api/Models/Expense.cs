@@ -14,7 +14,8 @@ namespace api.Models
         public int? CarId { get; set; }
         public Car? Car { get; set; }
 
-        // Optional link to a driver (no navigation to avoid EF issues)
+        // Optional link to a driver
         public int? DriverId { get; set; }
+        public Driver? Driver { get; set; }
     }
 }

@@ -9,6 +9,7 @@ namespace api.Models
         public string Phone { get; set; } = string.Empty;
         // Status e.g. "Available", "OnTrip", "Offline"
         public string Status { get; set; } = "Available";
+        public decimal BaseSalary { get; set; } = 0;
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();
     }
 }

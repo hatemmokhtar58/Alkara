@@ -139,7 +139,7 @@ const Customers = () => {
             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'}
             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'}
             >
-                <div style={{ padding: '0 12px', color: '#a0aec0', display: 'flex' }}>
+                <div style={{ padding: '0 12px', color: 'var(--gray-400)', display: 'flex' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -158,7 +158,7 @@ const Customers = () => {
                         fontSize: '0.95rem', 
                         outline: 'none', 
                         background: 'transparent',
-                        color: '#2d3748',
+                        color: 'var(--text-dark)',
                         fontFamily: 'inherit',
                         fontWeight: '500'
                     }}
@@ -166,7 +166,7 @@ const Customers = () => {
                 
                 <div style={{
                     marginLeft: '4px',
-                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #2b6cb0 100%)',
+                    background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
                     color: 'white',
                     padding: '8px 20px',
                     borderRadius: '8px',
@@ -201,7 +201,7 @@ const Customers = () => {
                                 <td>{c.phone}</td>
                                 <td>{new Date(c.createdAt).toLocaleDateString(locale)}</td>
                                 <td>
-                                    <button className="btn btn-secondary" style={{padding: '4px 10px', fontSize: '13px', background: '#3b82f6', color: 'white'}} onClick={() => handleViewStats(c)}>
+                                    <button className="btn btn-secondary" style={{padding: '4px 10px', fontSize: '13px', background: 'var(--primary-color)', color: 'white'}} onClick={() => handleViewStats(c)}>
                                         {t('Customers.StatsBtn')}
                                     </button>
                                 </td>
@@ -209,7 +209,7 @@ const Customers = () => {
                                     <div style={{display: 'flex', gap: '5px'}}>
                                         <button 
                                             className="btn btn-secondary" 
-                                            style={{padding: '5px 8px', fontSize: '11px', background: '#e2e8f0', color: '#4a5568'}}
+                                            style={{padding: '5px 8px', fontSize: '11px', background: 'var(--gray-200)', color: 'var(--gray-600)'}}
                                             onClick={() => handleEditClick(c)}
                                         >
                                             {t('Common.Edit')}
@@ -237,12 +237,12 @@ const Customers = () => {
                         <h2 style={{color: 'var(--primary-color)', textAlign: 'center', marginBottom: '2rem'}}>{t('Drivers.StatsModalTitle')} {selectedCustomerStats.name}</h2>
                         
                         <div style={{display: 'grid', gridTemplateColumns: hasFinancePerm ? '1fr 1fr' : '1fr', gap: '15px'}}>
-                            <div style={{border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'center'}}>
+                            <div style={{border: '1px solid var(--gray-200)', padding: '20px', borderRadius: '10px', textAlign: 'center'}}>
                                 <p style={{fontWeight: 'bold', marginBottom: '10px', fontSize: '1.1rem'}}>{t('Drivers.TotalTrips')}</p>
                                 <span style={{fontSize: '2.5rem', color: 'var(--primary-color)'}}>{customerStatsData?.totalTrips}</span>
                             </div>
                             {hasFinancePerm && (
-                                <div style={{border: '1px solid #e2e8f0', padding: '20px', borderRadius: '10px', textAlign: 'center'}}>
+                                <div style={{border: '1px solid var(--gray-200)', padding: '20px', borderRadius: '10px', textAlign: 'center'}}>
                                     <p style={{fontWeight: 'bold', marginBottom: '10px', fontSize: '1.2rem'}}>{t('TripsLog.TotalAmount')}</p>
                                     <span style={{fontSize: '2.5rem', color: 'var(--success-color)'}}>{customerStatsData?.yearSpent}</span> <span style={{fontSize: '1rem', color: 'var(--success-color)'}}>{t('Dashboard.Currency')}</span>
                                 </div>
@@ -251,7 +251,7 @@ const Customers = () => {
 
 
                         <div style={{marginTop: '2rem', textAlign: 'end'}}>
-                            <button className="btn" onClick={() => setStatsModalOpen(false)} style={{backgroundColor: '#e2e8f0', color: '#1a202c'}}>{t('Common.Close')}</button>
+                            <button className="btn" onClick={() => setStatsModalOpen(false)} style={{backgroundColor: 'var(--gray-200)', color: 'var(--gray-900)'}}>{t('Common.Close')}</button>
                         </div>
                     </div>
                 </div>

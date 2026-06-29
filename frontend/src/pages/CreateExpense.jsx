@@ -65,7 +65,7 @@ const CreateExpense = () => {
                             <label className="form-label">{t('CreateExpense.Category')}</label>
                             <div style={{
                                 padding: '0.6rem 1rem', borderRadius: '8px', textAlign: 'center', fontWeight: '700',
-                                background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', fontSize: '1rem'
+                                background: 'var(--warning-bg)', color: 'var(--warning-darker)', border: '1px solid var(--warning-lighter)', fontSize: '1rem'
                             }}>بنزين</div>
                         </div>
 

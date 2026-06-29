@@ -140,7 +140,7 @@ const Users = () => {
                                     <td>
                                         <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
                                             {u.permissions && u.permissions.split(',').map(p => (
-                                                <span key={p} style={{fontSize: '10px', padding: '2px 6px', background: '#f1f5f9', borderRadius: '4px', border: '1px solid #e2e8f0'}}>
+                                                <span key={p} style={{fontSize: '10px', padding: '2px 6px', background: 'var(--gray-100)', borderRadius: '4px', border: '1px solid var(--gray-200)'}}>
                                                     {t(`Users.Keys.${p}`)}
                                                 </span>
                                             ))}
@@ -148,7 +148,7 @@ const Users = () => {
                                     </td>
                                     <td>
                                         <div style={{display: 'flex', gap: '5px'}}>
-                                            <button className="btn btn-secondary" style={{padding: '5px 8px', fontSize: '11px', background: '#e2e8f0', color: '#4a5568'}} onClick={() => handleOpenModal(u)}>{t('Common.Edit')}</button>
+                                            <button className="btn btn-secondary" style={{padding: '5px 8px', fontSize: '11px', background: 'var(--gray-200)', color: 'var(--gray-600)'}} onClick={() => handleOpenModal(u)}>{t('Common.Edit')}</button>
                                             <button className="btn btn-danger" style={{padding: '5px 8px', fontSize: '11px'}} onClick={() => handleDelete(u.id)}>{t('Common.Delete')}</button>
                                         </div>
                                     </td>
@@ -192,7 +192,7 @@ const Users = () => {
                                 <label className="form-label" style={{display: 'block', marginBottom: '10px'}}>{t('Users.Permissions')}</label>
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
                                     {availablePermissions.map(p => (
-                                        <label key={p.key} style={{display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: userPerms.includes(p.key) ? '#f0f9ff' : '#f8fafc', borderRadius: '8px', border: userPerms.includes(p.key) ? '1px solid #bae6fd' : '1px solid #e2e8f0', cursor: 'pointer'}}>
+                                        <label key={p.key} style={{display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: userPerms.includes(p.key) ? 'var(--primary-bg)' : 'var(--gray-50)', borderRadius: '8px', border: userPerms.includes(p.key) ? '1px solid var(--primary-border)' : '1px solid var(--gray-200)', cursor: 'pointer'}}>
                                             <input type="checkbox" checked={userPerms.includes(p.key)} onChange={() => togglePermission(p.key)} />
                                             <span style={{fontSize: '14px'}}>
                                                 {p.icon} {t(`Users.Keys.${p.key}`)}

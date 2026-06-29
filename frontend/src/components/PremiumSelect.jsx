@@ -12,9 +12,9 @@ const PremiumSelect = ({ options, value, onChange, placeholder, required, creata
             ...provided,
             minHeight: '45px',
             borderRadius: '10px',
-            borderColor: state.isFocused ? 'var(--primary-color)' : '#d1d5db',
+            borderColor: state.isFocused ? 'var(--primary-color)' : 'var(--border-medium)',
             boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.15)' : 'none',
-            backgroundColor: state.isFocused ? '#ffffff' : '#f9fafb',
+            backgroundColor: state.isFocused ? '#ffffff' : 'var(--gray-50)',
             transition: 'all 0.3s ease',
             fontFamily: 'inherit',
             fontWeight: '600',
@@ -62,7 +62,7 @@ const PremiumSelect = ({ options, value, onChange, placeholder, required, creata
             ...provided,
             borderRadius: '12px',
             boxShadow: '0 15px 35px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #e5e7eb',
+            border: '1px solid var(--border-color)',
             marginTop: '8px'
         }),
         menuPortal: base => ({ ...base, zIndex: 9999 }),
@@ -76,7 +76,7 @@ const PremiumSelect = ({ options, value, onChange, placeholder, required, creata
         }),
         dropdownIndicator: (provided) => ({
             ...provided,
-            color: '#4F46E5',
+            color: 'var(--primary-color)',
             '&:hover': {
                 color: 'var(--primary-hover)'
             }

@@ -32,6 +32,7 @@ const Dashboard = ({ userRole }) => {
     const [closeExtra, setCloseExtra] = useState('');
     const [closeNotes, setCloseNotes] = useState('');
     const [closePaidAmount, setClosePaidAmount] = useState('');
+    const [closeCollectionAmount, setCloseCollectionAmount] = useState('');
 
     // Create trip modal
     const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -44,6 +45,15 @@ const Dashboard = ({ userRole }) => {
     const [newPricingType, setNewPricingType] = useState('Hourly');
     const [newHourlyRate, setNewHourlyRate] = useState('');
     const [newFixedPrice, setNewFixedPrice] = useState('');
+
+    // SMS Toggle (Admin only)
+    const [smsEnabled, setSmsEnabled] = useState(false); // مقفول مؤقتاً - تست
+    const toggleSms = () => {
+        setSmsEnabled(prev => {
+            localStorage.setItem('smsEnabled', String(!prev));
+            return !prev;
+        });
+    };
 
     useEffect(() => {
         fetchAll();
@@ -176,7 +186,7 @@ const Dashboard = ({ userRole }) => {
                 setCustomers(custRes.data);
             }
 
-            await api.post('/Trips', {
+            await api.post('/Trips' + (!smsEnabled ? '?skipSms=true' : ''), {
                 customerId: customerId,
                 driverId: selectedDriverId,
                 carId: newCarId ? parseInt(newCarId) : null,
@@ -209,7 +219,7 @@ const Dashboard = ({ userRole }) => {
         setActionLoading(true);
         try {
             const tripData = { ...row.trip, status: 'Ongoing', customer: null, driver: null, car: null };
-            await api.put(`/Trips/${row.trip.id}`, tripData);
+            await api.put(`/Trips/${row.trip.id}` + (!smsEnabled ? '?skipSms=true' : ''), tripData);
             showToast(t('Dashboard.Msg.TripStarted'), 'success');
             await fetchAll();
         } catch (err) {
@@ -232,22 +242,10 @@ const Dashboard = ({ userRole }) => {
         setCloseDiscount('');
         setCloseNotes('');
         setClosePaidAmount('');
+        setCloseCollectionAmount('');
 
         // Auto-calculate extra charge for fixed-price trips exceeding 1 hour
-        if (row.trip.pricingType === 'Fixed' && row.trip.fixedPrice) {
-            const now = new Date();
-            const start = row.trip.startTime ? new Date(row.trip.startTime) : now;
-            const totalMin = Math.max(0, (now - start) / 60000);
-            if (totalMin > 60) {
-                const extraMin = totalMin - 60;
-                const extraCharge = Math.round((extraMin * (parseFloat(row.trip.fixedPrice) / 60)) * 100) / 100;
-                setCloseExtra(String(extraCharge));
-            } else {
-                setCloseExtra('');
-            }
-        } else {
-            setCloseExtra('');
-        }
+        setCloseExtra('');
 
         setCloseModalOpen(true);
     };
@@ -262,7 +260,6 @@ const Dashboard = ({ userRole }) => {
         const minutes = Math.round(totalMin % 60);
 
         let hoursCost = 0;
-        let autoExtra = 0;
         if (closePricingType === 'Hourly' && closeHourlyRate) {
             const rate = parseFloat(closeHourlyRate);
             if (totalMin <= 60) {
@@ -272,13 +269,10 @@ const Dashboard = ({ userRole }) => {
             }
         } else if (closePricingType === 'Fixed' && closeFixedPrice) {
             hoursCost = parseFloat(closeFixedPrice);
-            if (totalMin > 60) {
-                autoExtra = Math.round(((totalMin - 60) * (parseFloat(closeFixedPrice) / 60)) * 100) / 100;
-            }
         }
 
         const discount = parseFloat(closeDiscount) || 0;
-        const extra = closePricingType === 'Fixed' ? autoExtra : (parseFloat(closeExtra) || 0);
+        const extra = parseFloat(closeExtra) || 0;
         const total = Math.max(0, hoursCost - discount + extra);
         return { hours, minutes, hoursCost: Math.round(hoursCost * 100) / 100, discount, extra, total: Math.round(total * 100) / 100 };
     };
@@ -301,12 +295,17 @@ const Dashboard = ({ userRole }) => {
                 fixedPrice: closePricingType === 'Fixed' ? Number(closeFixedPrice) : null,
                 paymentMethod: closePaymentMethod,
                 paidAmount: parseFloat(closePaidAmount) || 0,
+                finalTotal: totals.total,
                 discountType: closeDiscount && parseFloat(closeDiscount) > 0 ? 'Amount' : 'None',
                 discountValue: parseFloat(closeDiscount) || 0,
                 notes: closeNotes || null,
                 customer: null, driver: null, car: null
             };
-            await api.put(`/Trips/${closingTrip.id}`, tripData);
+            const queryParams = [];
+            if (!smsEnabled) queryParams.push('skipSms=true');
+            if (closeCollectionAmount && parseFloat(closeCollectionAmount) > 0) queryParams.push(`collectionAmount=${parseFloat(closeCollectionAmount)}`);
+            const queryString = queryParams.length > 0 ? '?' + queryParams.join('&') : '';
+            await api.put(`/Trips/${closingTrip.id}${queryString}`, tripData);
 
             showToast(t('Dashboard.Msg.TripClosed'), 'success');
             setCloseModalOpen(false);
@@ -327,7 +326,7 @@ const Dashboard = ({ userRole }) => {
         setActionLoading(true);
         try {
             const tripData = { ...row.trip, status: 'Cancelled', customer: null, driver: null, car: null };
-            await api.put(`/Trips/${row.trip.id}`, tripData);
+            await api.put(`/Trips/${row.trip.id}` + (!smsEnabled ? '?skipSms=true' : ''), tripData);
             showToast(t('Dashboard.Msg.TripCancelled'), 'success');
             await fetchAll();
         } catch (err) {
@@ -344,7 +343,7 @@ const Dashboard = ({ userRole }) => {
 
         setActionLoading(true);
         try {
-            const res = await api.post(`/Trips/${row.trip.id}/depart`);
+            const res = await api.post(`/Trips/${row.trip.id}/depart` + (!smsEnabled ? '?skipSms=true' : ''));
             setDepartedTrips(prev => ({ ...prev, [row.trip.id]: new Date() }));
             showToast(res.data.message || t('Dashboard.Msg.DepartSent'), 'success');
         } catch (err) {
@@ -365,7 +364,7 @@ const Dashboard = ({ userRole }) => {
         <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
             {loading && (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem 0' }}>
-                    <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <div style={{ width: '40px', height: '40px', border: '4px solid var(--gray-200)', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 </div>
             )}
             {!loading && <>
@@ -407,7 +406,7 @@ const Dashboard = ({ userRole }) => {
                                 onDoubleClick={() => handleOpenCreateModal(row.driver.id)}
                                 style={{ cursor: 'pointer' }}
                             >
-                                <td style={{ fontWeight: 'bold', color: '#94a3b8', textAlign: 'center' }}>{idx + 1}</td>
+                                <td style={{ fontWeight: 'bold', color: 'var(--gray-400)', textAlign: 'center' }}>{idx + 1}</td>
                                 <td style={{ fontWeight: '600', textAlign: 'center' }}>{row.driver.name}</td>
                                 <td style={{ textAlign: 'center' }}>{getStatusBadge(row.driver, row.trip)}</td>
                                 <td style={{ textAlign: 'center' }}>{row.customer?.name || '—'}</td>
@@ -427,7 +426,7 @@ const Dashboard = ({ userRole }) => {
                         ))}
                         {driverRows.length === 0 && (
                             <tr>
-                                <td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                <td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray-400)' }}>
                                     {t('Dashboard.NoDrivers')}
                                 </td>
                             </tr>
@@ -472,37 +471,41 @@ const Dashboard = ({ userRole }) => {
                 return (
                 <div className="modal-overlay" onClick={() => setCloseModalOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-                        <h2 style={{ textAlign: 'center', marginBottom: '0.8rem', color: '#10b981' }}>
+                        <h2 style={{ textAlign: 'center', marginBottom: '0.8rem', color: 'var(--success-light)' }}>
                             {t('Dashboard.Modal.Title')}
                         </h2>
 
                         {/* Trip Info Grid */}
                         <div style={{
-                            background: '#f8fafc', borderRadius: '10px', padding: '0.8rem',
-                            marginBottom: '0.8rem', border: '1px solid #e2e8f0'
+                            background: 'var(--gray-50)', borderRadius: '10px', padding: '0.8rem',
+                            marginBottom: '0.8rem', border: '1px solid var(--gray-200)'
                         }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                 <div><strong>{t('Dashboard.Col.Driver')}:</strong> {drv?.name}</div>
                                 <div><strong>{t('CreateTrip.Customer')}:</strong> {cust?.name}</div>
                                 <div><strong>{t('Dashboard.Col.Phone')}:</strong> <span dir="ltr">{cust?.phone || '--'}</span></div>
-                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? '#991b1b' : '#065f46', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}</span></div>
+                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--success-darker)', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}</span></div>
                                 <div><strong>{t('CreateTrip.Car')}:</strong> {car ? `${car.make} ${car.model}` : '--'}</div>
                                 <div><strong>{t('Dashboard.Col.Location')}:</strong> {closingTrip.pickupLocation || '--'}</div>
                             </div>
                         </div>
 
                         {/* Times & Duration */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
-                            <div style={{ background: '#dbeafe', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid #93c5fd' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#1e40af' }}>{t('Dashboard.Modal.StartTime')}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                            <div style={{ background: 'var(--primary-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--primary-border)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--primary-dark)' }}>{t('Dashboard.Modal.StartTime')}</div>
                                 <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{formatTime(closingTrip.startTime)}</div>
                             </div>
-                            <div style={{ background: '#fef3c7', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid #fcd34d' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#92400e' }}>{t('Dashboard.Modal.EndTime')}</div>
+                            <div style={{ background: 'var(--info-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--info-border)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--primary-dark)' }}>{t('Dashboard.Col.Departure')}</div>
+                                <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{departedTrips[closingTrip.id] ? formatTime(departedTrips[closingTrip.id]) : '—'}</div>
+                            </div>
+                            <div style={{ background: 'var(--warning-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--warning-lighter)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--warning-darker)' }}>{t('Dashboard.Modal.EndTime')}</div>
                                 <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</div>
                             </div>
-                            <div style={{ background: '#f3e8ff', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid #c4b5fd' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#6b21a8' }}>{t('Dashboard.Modal.Duration')}</div>
+                            <div style={{ background: 'var(--purple-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--purple-border)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--purple-dark)' }}>{t('Dashboard.Modal.Duration')}</div>
                                 <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{totals.hours}:{String(totals.minutes).padStart(2, '0')}</div>
                             </div>
                         </div>
@@ -524,7 +527,7 @@ const Dashboard = ({ userRole }) => {
                                 <label className="form-label">{t('Dashboard.Modal.HoursCost')}</label>
                                 <div style={{
                                     padding: '0.5rem', borderRadius: '8px', textAlign: 'center', fontWeight: '700',
-                                    background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7'
+                                    background: 'var(--success-bg)', color: 'var(--success-darker)', border: '1px solid var(--success-border)'
                                 }}>{totals.hoursCost} {t('Dashboard.Currency')}</div>
                             </div>
                             )}
@@ -532,7 +535,7 @@ const Dashboard = ({ userRole }) => {
 
                         {/* Total */}
                         <div style={{
-                            background: 'linear-gradient(135deg, #065f46, #047857)', borderRadius: '10px', padding: '0.7rem',
+                            background: 'var(--success-gradient)', borderRadius: '10px', padding: '0.7rem',
                             marginTop: '0.8rem', textAlign: 'center', color: 'white'
                         }}>
                             <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>{t('Dashboard.Modal.TripTotal')}</div>
@@ -549,16 +552,9 @@ const Dashboard = ({ userRole }) => {
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                                 <label className="form-label">{t('Dashboard.Modal.ExtraCharge')}</label>
-                                {closingTrip.pricingType === 'Fixed' ? (
-                                    <div style={{
-                                        padding: '0.5rem', borderRadius: '8px', textAlign: 'center', fontWeight: '700',
-                                        background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d'
-                                    }}>{totals.extra} {t('Dashboard.Currency')}</div>
-                                ) : (
-                                    <input type="number" className="form-control" value={closeExtra}
-                                        onChange={e => setCloseExtra(e.target.value)}
-                                        placeholder="0" style={{ textAlign: 'center', fontWeight: '700' }} />
-                                )}
+                                <input type="number" className="form-control" value={closeExtra}
+                                    onChange={e => setCloseExtra(e.target.value)}
+                                    placeholder="0" style={{ textAlign: 'center', fontWeight: '700' }} />
                             </div>
                         </div>
 
@@ -579,9 +575,9 @@ const Dashboard = ({ userRole }) => {
                                         }}
                                         style={{
                                             flex: 1, padding: '8px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem',
-                                            background: closePaymentMethod === method ? '#10b981' : 'white',
-                                            color: closePaymentMethod === method ? 'white' : '#333',
-                                            border: `2px solid ${closePaymentMethod === method ? '#10b981' : '#e2e8f0'}`
+                                            background: closePaymentMethod === method ? 'var(--success-light)' : 'white',
+                                            color: closePaymentMethod === method ? 'white' : 'var(--text-body)',
+                                            border: `2px solid ${closePaymentMethod === method ? 'var(--success-light)' : 'var(--gray-200)'}`
                                         }}>
                                         {t(`Dashboard.Modal.${method}`)}
                                     </button>
@@ -598,24 +594,24 @@ const Dashboard = ({ userRole }) => {
                             return (
                                 <div style={{
                                     marginTop: '0.6rem', padding: '0.7rem', borderRadius: '10px',
-                                    background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', border: '1px solid #a5b4fc'
+                                    background: 'linear-gradient(135deg, var(--primary-bg), var(--primary-bg-hover))', border: '1px solid var(--primary-border)'
                                 }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem', textAlign: 'center' }}>
                                         <div>
-                                            <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: '600' }}>{t('Dashboard.Modal.WalletCredit')}</div>
-                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: credit > 0 ? '#059669' : '#dc2626' }}>{credit} {t('Dashboard.Currency')}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', fontWeight: '600' }}>{t('Dashboard.Modal.WalletCredit')}</div>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: credit > 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>{credit} {t('Dashboard.Currency')}</div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: '600' }}>{t('Dashboard.Modal.WalletDeduct')}</div>
-                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#dc2626' }}>-{deductFromWallet} {t('Dashboard.Currency')}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', fontWeight: '600' }}>{t('Dashboard.Modal.WalletDeduct')}</div>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--danger-color)' }}>-{deductFromWallet} {t('Dashboard.Currency')}</div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: '600' }}>{t('Dashboard.Modal.WalletAfter')}</div>
-                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#4f46e5' }}>{walletRemaining} {t('Dashboard.Currency')}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--primary-light)', fontWeight: '600' }}>{t('Dashboard.Modal.WalletAfter')}</div>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--primary-color)' }}>{walletRemaining} {t('Dashboard.Currency')}</div>
                                         </div>
                                     </div>
                                     {credit < totals.total && (
-                                        <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#dc2626', textAlign: 'center', fontWeight: '600' }}>
+                                        <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--danger-color)', textAlign: 'center', fontWeight: '600' }}>
                                             {t('Dashboard.Modal.WalletNotEnough')}
                                         </div>
                                     )}
@@ -626,12 +622,12 @@ const Dashboard = ({ userRole }) => {
                         {/* Paid Amount & Remaining */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginTop: '0.8rem' }}>
                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label" style={{ color: closePaidAmount === '' ? '#ef4444' : 'inherit' }}>{t('Dashboard.Modal.PaidAmount')} *</label>
+                                <label className="form-label" style={{ color: closePaidAmount === '' ? 'var(--danger-light)' : 'inherit' }}>{t('Dashboard.Modal.PaidAmount')} *</label>
                                 <input type="number" className="form-control" value={closePaidAmount}
                                     onChange={e => setClosePaidAmount(e.target.value)}
                                     placeholder="0"
                                     min="0"
-                                    style={{ textAlign: 'center', fontWeight: '700', borderColor: closePaidAmount === '' ? '#ef4444' : undefined }} />
+                                    style={{ textAlign: 'center', fontWeight: '700', borderColor: closePaidAmount === '' ? 'var(--danger-light)' : undefined }} />
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                                 <label className="form-label">{t('Dashboard.Modal.RemainingDebt')}</label>
@@ -641,9 +637,9 @@ const Dashboard = ({ userRole }) => {
                                     return (
                                         <div style={{
                                             padding: '0.5rem', borderRadius: '8px', textAlign: 'center', fontWeight: '700',
-                                            background: rem > 0 ? '#fee2e2' : '#d1fae5',
-                                            color: rem > 0 ? '#991b1b' : '#065f46',
-                                            border: `1px solid ${rem > 0 ? '#fca5a5' : '#6ee7b7'}`
+                                            background: rem > 0 ? 'var(--danger-bg)' : 'var(--success-bg)',
+                                            color: rem > 0 ? 'var(--danger-darker)' : 'var(--success-darker)',
+                                            border: `1px solid ${rem > 0 ? 'var(--danger-border)' : 'var(--success-border)'}`
                                         }}>
                                             {rem > 0 ? `${rem} ${t('Dashboard.Currency')}` : rem < 0 ? `سداد ${Math.abs(rem)} ${t('Dashboard.Currency')}` : `0 ${t('Dashboard.Currency')}`}
                                         </div>
@@ -661,12 +657,46 @@ const Dashboard = ({ userRole }) => {
                                 placeholder={t('Dashboard.Modal.NotesPlaceholder')} />
                         </div>
 
+                        {/* Collection - تحصيل مديونية */}
+                        <div style={{ marginTop: '0.8rem', padding: '0.7rem', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(239,68,68,0.05), rgba(239,68,68,0.02))', border: '1px solid var(--danger-lighter)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--danger-darker)' }}>💰 تحصيل مديونية</span>
+                                {(cust?.walletBalance || 0) > 0 && (
+                                    <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--danger-light)', background: 'var(--danger-bg)', padding: '2px 8px', borderRadius: '6px' }}>
+                                        المديونية: {(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
+                                    </span>
+                                )}
+                            </div>
+                            <input type="number" step="0.01" className="form-control"
+                                value={closeCollectionAmount}
+                                onChange={e => setCloseCollectionAmount(e.target.value)}
+                                placeholder="0"
+                                style={{ textAlign: 'center', fontWeight: '700', fontSize: '1.1rem' }}
+                            />
+                        </div>
+
+                        {/* SMS Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0.8rem 0 0', padding: '0.6rem 0.8rem', background: smsEnabled ? 'rgba(79, 70, 229, 0.05)' : 'var(--gray-50)', borderRadius: '8px', border: `1px solid ${smsEnabled ? 'var(--primary-color)' : 'var(--gray-200)'}`, cursor: 'pointer', userSelect: 'none' }} onClick={toggleSms}>
+                            <div style={{
+                                width: '20px', height: '20px', borderRadius: '5px',
+                                border: `2px solid ${smsEnabled ? 'var(--primary-color)' : 'var(--gray-300)'}`,
+                                background: smsEnabled ? 'var(--primary-color)' : 'white',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s ease', flexShrink: 0
+                            }}>
+                                {smsEnabled && <span style={{ color: 'white', fontSize: '12px', fontWeight: '700' }}>✓</span>}
+                            </div>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600', color: smsEnabled ? 'var(--primary-color)' : 'var(--gray-500)' }}>
+                                {smsEnabled ? '📩' : '🔕'} {t('Dashboard.SmsToggle')}
+                            </span>
+                        </div>
+
                         {/* Buttons */}
                         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem' }}>
                             <button onClick={handleCloseTrip} disabled={actionLoading}
                                 style={{
                                     flex: 2, padding: '10px', borderRadius: '10px', fontWeight: '800', fontSize: '0.95rem',
-                                    background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white',
+                                    background: 'var(--success-gradient)', color: 'white',
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                                     boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
                                 }}>
@@ -675,7 +705,7 @@ const Dashboard = ({ userRole }) => {
                             <button onClick={() => setCloseModalOpen(false)}
                                 style={{
                                     flex: 1, padding: '10px', borderRadius: '10px', fontWeight: '700', fontSize: '0.95rem',
-                                    background: 'transparent', color: '#ef4444', border: '2px solid #ef4444',
+                                    background: 'transparent', color: 'var(--danger-light)', border: '2px solid var(--danger-light)',
                                     cursor: 'pointer', fontFamily: 'inherit'
                                 }}>
                                 {t('Common.Cancel')}
@@ -695,9 +725,9 @@ const Dashboard = ({ userRole }) => {
 
                         {/* Driver Info */}
                         <div style={{
-                            background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+                            background: 'linear-gradient(135deg, var(--primary-bg), var(--primary-bg-hover))',
                             borderRadius: '10px', padding: '0.6rem', marginBottom: '0.8rem',
-                            border: '1px solid #bae6fd', textAlign: 'center', fontSize: '0.95rem'
+                            border: '1px solid var(--primary-border)', textAlign: 'center', fontSize: '0.95rem'
                         }}>
                             <strong>{t('Dashboard.Col.Driver')}: </strong>
                             <span style={{ fontWeight: '700' }}>{drivers.find(d => d.id === selectedDriverId)?.name}</span>
@@ -720,7 +750,7 @@ const Dashboard = ({ userRole }) => {
                                     <label className="form-label">{t('CreateTrip.Customer')}</label>
                                     <div style={{
                                         padding: '8px', borderRadius: '8px', fontWeight: '700',
-                                        background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', textAlign: 'center'
+                                        background: 'var(--success-bg)', color: 'var(--success-darker)', border: '1px solid var(--success-border)', textAlign: 'center'
                                     }}>
                                         {foundCustomer.name}
                                     </div>
@@ -729,13 +759,13 @@ const Dashboard = ({ userRole }) => {
 
                             {foundCustomer === false && (
                                 <div className="form-group" style={{ gridColumn: '1 / -1', marginBottom: 0 }}>
-                                    <label className="form-label" style={{ color: '#f59e0b', fontWeight: '700' }}>
+                                    <label className="form-label" style={{ color: 'var(--warning-light)', fontWeight: '700' }}>
                                         {t('Dashboard.Modal.NewCustomer')}
                                     </label>
                                     <input type="text" className="form-control" value={newCustomerName}
                                         onChange={e => setNewCustomerName(e.target.value)}
                                         placeholder={t('Dashboard.Modal.EnterName')}
-                                        style={{ fontWeight: '600', borderColor: '#f59e0b' }} />
+                                        style={{ fontWeight: '600', borderColor: 'var(--warning-light)' }} />
                                 </div>
                             )}
 
@@ -745,9 +775,9 @@ const Dashboard = ({ userRole }) => {
                                     <label className="form-label">{t('Dashboard.Modal.WalletBalance')}</label>
                                     <div style={{
                                         padding: '8px', borderRadius: '8px', fontWeight: '700', textAlign: 'center',
-                                        background: (foundCustomer.walletBalance || 0) > 0 ? '#fee2e2' : '#f1f5f9',
-                                        color: (foundCustomer.walletBalance || 0) > 0 ? '#991b1b' : '#64748b',
-                                        border: `1px solid ${(foundCustomer.walletBalance || 0) > 0 ? '#fca5a5' : '#e2e8f0'}`
+                                        background: (foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-bg)' : 'var(--gray-100)',
+                                        color: (foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--gray-500)',
+                                        border: `1px solid ${(foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-border)' : 'var(--gray-200)'}`
                                     }}>
                                         {(foundCustomer.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
                                     </div>
@@ -773,15 +803,15 @@ const Dashboard = ({ userRole }) => {
                                         style={{
                                             flex: 1, padding: '8px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit',
                                             background: newPricingType === 'Hourly' ? 'var(--primary-color)' : 'white',
-                                            color: newPricingType === 'Hourly' ? 'white' : '#333',
-                                            border: `2px solid ${newPricingType === 'Hourly' ? 'var(--primary-color)' : '#e2e8f0'}`
+                                            color: newPricingType === 'Hourly' ? 'white' : 'var(--text-body)',
+                                            border: `2px solid ${newPricingType === 'Hourly' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                         }}>{t('CreateTrip.Hourly')}</button>
                                     <button type="button" onClick={() => setNewPricingType('Fixed')}
                                         style={{
                                             flex: 1, padding: '8px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit',
                                             background: newPricingType === 'Fixed' ? 'var(--primary-color)' : 'white',
-                                            color: newPricingType === 'Fixed' ? 'white' : '#333',
-                                            border: `2px solid ${newPricingType === 'Fixed' ? 'var(--primary-color)' : '#e2e8f0'}`
+                                            color: newPricingType === 'Fixed' ? 'white' : 'var(--text-body)',
+                                            border: `2px solid ${newPricingType === 'Fixed' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                         }}>{t('CreateTrip.Fixed')}</button>
                                 </div>
                             </div>
@@ -810,12 +840,28 @@ const Dashboard = ({ userRole }) => {
                             </div>
                         </div>
 
+                        {/* SMS Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0.8rem 0 0', padding: '0.6rem 0.8rem', background: smsEnabled ? 'rgba(79, 70, 229, 0.05)' : 'var(--gray-50)', borderRadius: '8px', border: `1px solid ${smsEnabled ? 'var(--primary-color)' : 'var(--gray-200)'}`, cursor: 'pointer', userSelect: 'none' }} onClick={toggleSms}>
+                            <div style={{
+                                width: '20px', height: '20px', borderRadius: '5px',
+                                border: `2px solid ${smsEnabled ? 'var(--primary-color)' : 'var(--gray-300)'}`,
+                                background: smsEnabled ? 'var(--primary-color)' : 'white',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s ease', flexShrink: 0
+                            }}>
+                                {smsEnabled && <span style={{ color: 'white', fontSize: '12px', fontWeight: '700' }}>✓</span>}
+                            </div>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600', color: smsEnabled ? 'var(--primary-color)' : 'var(--gray-500)' }}>
+                                {smsEnabled ? '📩' : '🔕'} {t('Dashboard.SmsToggle')}
+                            </span>
+                        </div>
+
                         {/* Buttons */}
                         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem' }}>
                             <button onClick={handleCreateTrip} disabled={actionLoading}
                                 style={{
                                     flex: 2, padding: '10px', borderRadius: '10px', fontWeight: '800', fontSize: '0.95rem',
-                                    background: 'linear-gradient(135deg, var(--primary-color), #2b6cb0)', color: 'white',
+                                    background: 'var(--primary-gradient)', color: 'white',
                                     border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                                     boxShadow: '0 4px 12px rgba(66, 153, 225, 0.3)'
                                 }}>
@@ -824,7 +870,7 @@ const Dashboard = ({ userRole }) => {
                             <button onClick={() => setCreateModalOpen(false)}
                                 style={{
                                     flex: 1, padding: '10px', borderRadius: '10px', fontWeight: '700', fontSize: '0.95rem',
-                                    background: 'transparent', color: '#ef4444', border: '2px solid #ef4444',
+                                    background: 'transparent', color: 'var(--danger-light)', border: '2px solid var(--danger-light)',
                                     cursor: 'pointer', fontFamily: 'inherit'
                                 }}>
                                 {t('Common.Cancel')}

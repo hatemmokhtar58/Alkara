@@ -12,6 +12,7 @@ const Drivers = ({ userRole }) => {
     const [trips, setTrips] = useState([]);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
+    const [baseSalary, setBaseSalary] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     
     const [statsModalOpen, setStatsModalOpen] = useState(false);
@@ -33,6 +34,7 @@ const Drivers = ({ userRole }) => {
     const [editingDriver, setEditingDriver] = useState(null);
     const [editName, setEditName] = useState('');
     const [editPhone, setEditPhone] = useState('');
+    const [editBaseSalary, setEditBaseSalary] = useState('');
 
     useEffect(() => {
         fetchDrivers();
@@ -50,9 +52,9 @@ const Drivers = ({ userRole }) => {
     const handleAdd = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/Drivers', { name, phone });
+            await api.post('/Drivers', { name, phone, baseSalary: parseFloat(baseSalary) || 0 });
             showToast(t('Common.Success'), 'success');
-            setName(''); setPhone('');
+            setName(''); setPhone(''); setBaseSalary('');
             fetchDrivers();
         } catch (err) {
             console.error(err);
@@ -89,6 +91,7 @@ const Drivers = ({ userRole }) => {
         setEditingDriver(driver);
         setEditName(driver.name);
         setEditPhone(driver.phone);
+        setEditBaseSalary(driver.baseSalary || '');
         setEditModalOpen(true);
     };
 
@@ -98,7 +101,8 @@ const Drivers = ({ userRole }) => {
             await api.put(`/Drivers/${editingDriver.id}`, { 
                 ...editingDriver, 
                 name: editName, 
-                phone: editPhone 
+                phone: editPhone,
+                baseSalary: parseFloat(editBaseSalary) || 0
             });
             showToast(t('Common.Success'), 'success');
             setEditModalOpen(false);
@@ -141,6 +145,10 @@ const Drivers = ({ userRole }) => {
                         <label className="form-label">{t('Drivers.Phone')}</label>
                         <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
                     </div>
+                    <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '120px' }}>
+                        <label className="form-label">الراتب الشهري</label>
+                        <input className="form-control" type="number" value={baseSalary} onChange={e => setBaseSalary(e.target.value)} placeholder="0" />
+                    </div>
                     <button type="submit" className="btn btn-primary">{t('Drivers.AddBtn')}</button>
                 </form>
             </div>
@@ -161,7 +169,7 @@ const Drivers = ({ userRole }) => {
             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'}
             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'}
             >
-                <div style={{ padding: '0 12px', color: '#a0aec0', display: 'flex' }}>
+                <div style={{ padding: '0 12px', color: 'var(--gray-400)', display: 'flex' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -180,7 +188,7 @@ const Drivers = ({ userRole }) => {
                         fontSize: '0.95rem', 
                         outline: 'none', 
                         background: 'transparent',
-                        color: '#2d3748',
+                        color: 'var(--text-dark)',
                         fontFamily: 'inherit',
                         fontWeight: '500'
                     }}
@@ -188,7 +196,7 @@ const Drivers = ({ userRole }) => {
                 
                 <div style={{
                     marginLeft: '4px',
-                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #2b6cb0 100%)',
+                    background: 'linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
                     color: 'white',
                     padding: '8px 20px',
                     borderRadius: '8px',
@@ -210,6 +218,7 @@ const Drivers = ({ userRole }) => {
                             <th>{t('Drivers.Id')}</th>
                             <th>{t('Drivers.Name')}</th>
                             <th>{t('Drivers.Phone')}</th>
+                            <th>الراتب</th>
                             <th>{t('Drivers.Status')}</th>
                             {hasReportsPerm && <th>{t('Drivers.StatsTitle')}</th>}
 
@@ -222,6 +231,7 @@ const Drivers = ({ userRole }) => {
                                 <td>{index + 1}</td>
                                 <td>{d.name}</td>
                                 <td>{d.phone}</td>
+                                <td>{d.baseSalary || 0}</td>
                                 <td>
                                     <button 
                                         className={`badge ${d.status === 'Available' ? 'badge-success' : 'badge-danger'}`}
@@ -242,7 +252,7 @@ const Drivers = ({ userRole }) => {
                                     <div style={{display: 'flex', gap: '5px'}}>
                                         <button 
                                             className="btn btn-secondary" 
-                                            style={{padding: '5px 8px', fontSize: '11px', background: '#e2e8f0', color: '#4a5568'}}
+                                            style={{padding: '5px 8px', fontSize: '11px', background: 'var(--gray-200)', color: 'var(--gray-600)'}}
                                             onClick={() => handleEditClick(d)}
                                         >
                                             {t('Common.Edit')}
@@ -295,7 +305,7 @@ const Drivers = ({ userRole }) => {
                         </div>
 
                         {hasFinancePerm && (
-                            <div className="card" style={{marginTop: '1rem', padding: '1rem', background: '#f7fafc'}}>
+                            <div className="card" style={{marginTop: '1rem', padding: '1rem', background: 'var(--gray-50)'}}>
                                 <h4>{t('Drivers.YearIncome')}</h4>
                                 <div style={{fontSize: '2.5rem', color: 'var(--success-color)'}}>{selectedDriverStats.yearIncome} <small style={{fontSize:'1rem'}}>{t('Dashboard.Currency')}</small></div>
                             </div>
@@ -322,6 +332,10 @@ const Drivers = ({ userRole }) => {
                             <div className="form-group">
                                 <label className="form-label">{t('Drivers.Phone')}</label>
                                 <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">الراتب الشهري</label>
+                                <input className="form-control" type="number" value={editBaseSalary} onChange={e => setEditBaseSalary(e.target.value)} placeholder="0" />
                             </div>
                             <div style={{display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'2rem'}}>
                                 <button type="button" className="btn" onClick={() => setEditModalOpen(false)}>{t('Common.Close')}</button>

@@ -77,7 +77,7 @@ const Wallet = () => {
 
             {selectedCustomer && (
                 <>
-                    <div className="card" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #2b6cb0 0%, #2c5282 100%)', color: 'white' }}>
+                    <div className="card" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-gradient)', color: 'white' }}>
                         <div>
                             <h3 style={{ marginBottom: '0.5rem', opacity: 0.9 }}>{t('Wallet.Balance')}</h3>
                             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: walletData.balance > 0 ? '#ffcccc' : (walletData.balance < 0 ? '#ccffcc' : 'white') }}>
@@ -91,7 +91,29 @@ const Wallet = () => {
                                     <input type="number" step="0.01" placeholder={t('Wallet.Amount')} className="form-control" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} required />
                                 </div>
                                 <div className="form-group">
-                                    <input type="text" placeholder={t('Wallet.Note')} className="form-control" value={depositNote} onChange={e => setDepositNote(e.target.value)} />
+                                    <label className="form-label" style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>{t('Wallet.NoteLabel')}</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteCashDriver'))}
+                                            style={{
+                                                flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
+                                                fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
+                                                background: depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositNote === t('Wallet.NoteCashDriver') ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                            }}>
+                                            💰 {t('Wallet.NoteCashDriver')}
+                                        </button>
+                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteTransferAdmin'))}
+                                            style={{
+                                                flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
+                                                fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
+                                                background: depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositNote === t('Wallet.NoteTransferAdmin') ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                            }}>
+                                            🏦 {t('Wallet.NoteTransferAdmin')}
+                                        </button>
+                                    </div>
                                 </div>
                                 <button type="submit" className="btn btn-primary" style={{width: '100%', padding: '0.8rem'}}>{t('Wallet.DepositBtn')}</button>
                             </form>
@@ -116,10 +138,10 @@ const Wallet = () => {
                                 const customerObj = customers.find(c => c.id === parseInt(selectedCustomer));
                                 return (
                                     <tr key={tData.id}>
-                                        <td><span className="badge" style={{background: '#e2e8f0', color: '#1a202c'}}>{customerObj ? customerObj.name : '-'}</span></td>
+                                        <td><span className="badge" style={{background: 'var(--gray-200)', color: 'var(--gray-800)'}}>{customerObj ? customerObj.name : '-'}</span></td>
                                         <td>{formatDate(tData.transactionDate)}</td>
                                         <td>
-                                            {tData.type === 'CashDeposit' ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
+                                            {(tData.type === 'CashDeposit' || tData.type === 'CashCollection') ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
                                         </td>
                                         <td style={{fontWeight: 'bold', color: displayedAmount > 0 ? 'var(--success-color)' : (displayedAmount < 0 ? 'var(--danger-color)' : 'inherit')}}>
                                             {displayedAmount > 0 ? `+${displayedAmount}` : displayedAmount} {t('Dashboard.Currency')}

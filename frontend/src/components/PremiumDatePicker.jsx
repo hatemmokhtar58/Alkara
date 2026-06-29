@@ -15,7 +15,7 @@ const CustomInput = forwardRef(({ value, onClick, placeholder }, ref) => {
             style={{
                 minHeight: '45px',
                 borderRadius: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid var(--border-medium)',
                 padding: '0.5rem 1rem',
                 width: '100%',
                 cursor: 'pointer',

@@ -25,7 +25,7 @@ const trips = [
 ];
 
 const expenses = [
-  { carId: 1, category: "Fuel", amount: 65.50, note: "بنزين 91", date: new Date().toISOString() },
+  { carId: 1, category: "Fuel", amount: 65.50, note: "بنزين", date: new Date().toISOString() },
   { carId: 2, category: "Washing", amount: 35, note: "غسيل سيارة داخلي خارجي", date: new Date().toISOString() }
 ];
 

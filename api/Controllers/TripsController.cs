@@ -58,13 +58,16 @@ namespace api.Controllers
 
         // POST: api/Trips
         [HttpPost]
-        public async Task<ActionResult<Trip>> PostTrip(Trip trip)
+        public async Task<ActionResult<Trip>> PostTrip(Trip trip, [FromQuery] bool skipSms = false)
         {
             _context.Trips.Add(trip);
             await _context.SaveChangesAsync();
 
             // إرسال رسالة SMS للعميل بعد تأكيد المشوار
-            await SendTripSms(trip, "Created");
+            if (!skipSms)
+            {
+                await SendTripSms(trip, "Created");
+            }
 
 
             return CreatedAtAction(nameof(GetTrips), new { id = trip.Id }, trip);
@@ -72,7 +75,7 @@ namespace api.Controllers
 
         // PUT: api/Trips/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTrip(int id, Trip trip)
+        public async Task<IActionResult> PutTrip(int id, Trip trip, [FromQuery] bool skipSms = false, [FromQuery] decimal collectionAmount = 0)
         {
             if (id != trip.Id)
             {
@@ -106,38 +109,43 @@ namespace api.Controllers
                 trip.StartTime = existingTrip.StartTime; 
             }
 
-            // Calculate FinalTotal dynamically on completion if using hourly rate
-            if (trip.Status == "Completed" && trip.PricingType == "Hourly" && trip.StartTime.HasValue && trip.EndTime.HasValue && trip.HourlyRate.HasValue)
+            // Use FinalTotal from frontend (includes extra charges) if provided
+            // Otherwise calculate it server-side as fallback
+            if (trip.Status == "Completed" && existingTrip.Status != "Completed")
             {
-                var totalMinutes = (trip.EndTime.Value - trip.StartTime.Value).TotalMinutes;
-                decimal basePrice;
-                
-                if (totalMinutes <= 60)
+                if (trip.FinalTotal <= 0)
                 {
-                    // أول ساعة أو أقل: المبلغ كامل
-                    basePrice = trip.HourlyRate.Value;
-                }
-                else
-                {
-                    // أول ساعة كاملة + باقي الدقائق بالتناسب
-                    var extraMinutes = (decimal)(totalMinutes - 60);
-                    var ratePerMinute = trip.HourlyRate.Value / 60m;
-                    basePrice = trip.HourlyRate.Value + (extraMinutes * ratePerMinute);
-                }
-                
-                // apply discount
-                if (trip.DiscountType == "Amount") basePrice -= trip.DiscountValue;
-                else if (trip.DiscountType == "Percentage") basePrice -= (basePrice * (trip.DiscountValue / 100));
+                    // Fallback: calculate FinalTotal server-side
+                    if (trip.PricingType == "Hourly" && trip.StartTime.HasValue && trip.EndTime.HasValue && trip.HourlyRate.HasValue)
+                    {
+                        var totalMinutes = (trip.EndTime.Value - trip.StartTime.Value).TotalMinutes;
+                        decimal basePrice;
+                        
+                        if (totalMinutes <= 60)
+                        {
+                            basePrice = trip.HourlyRate.Value;
+                        }
+                        else
+                        {
+                            var extraMinutes = (decimal)(totalMinutes - 60);
+                            var ratePerMinute = trip.HourlyRate.Value / 60m;
+                            basePrice = trip.HourlyRate.Value + (extraMinutes * ratePerMinute);
+                        }
+                        
+                        if (trip.DiscountType == "Amount") basePrice -= trip.DiscountValue;
+                        else if (trip.DiscountType == "Percentage") basePrice -= (basePrice * (trip.DiscountValue / 100));
 
-                trip.FinalTotal = basePrice > 0 ? Math.Round(basePrice, 2) : 0;
-            }
-            else if (trip.Status == "Completed" && trip.PricingType == "Fixed")
-            {
-                var basePrice = trip.FixedPrice ?? 0;
-                if (trip.DiscountType == "Amount") basePrice -= trip.DiscountValue;
-                else if (trip.DiscountType == "Percentage") basePrice -= (basePrice * (trip.DiscountValue / 100));
-                
-                trip.FinalTotal = basePrice > 0 ? basePrice : 0;
+                        trip.FinalTotal = basePrice > 0 ? Math.Round(basePrice, 2) : 0;
+                    }
+                    else if (trip.PricingType == "Fixed")
+                    {
+                        var basePrice = trip.FixedPrice ?? 0;
+                        if (trip.DiscountType == "Amount") basePrice -= trip.DiscountValue;
+                        else if (trip.DiscountType == "Percentage") basePrice -= (basePrice * (trip.DiscountValue / 100));
+                        
+                        trip.FinalTotal = basePrice > 0 ? basePrice : 0;
+                    }
+                }
             }
 
             // Handle payment and remaining debt when completing trip
@@ -214,6 +222,20 @@ namespace api.Controllers
                             });
                         }
                     }
+
+                    // Handle cash collection (تحصيل مديونية)
+                    if (collectionAmount > 0)
+                    {
+                        customer.WalletBalance -= collectionAmount;
+                        _context.WalletTransactions.Add(new WalletTransaction {
+                            CustomerId = customer.Id,
+                            TripId = trip.Id,
+                            Amount = -collectionAmount,
+                            Type = "CashCollection",
+                            Description = $"تحصيل كاش أثناء مشوار #{trip.Id}",
+                            TransactionDate = DateTime.Now
+                        });
+                    }
                 }
             }
 
@@ -239,11 +261,11 @@ namespace api.Controllers
                 await _context.SaveChangesAsync();
                 
                 // إرسال إشعارات SMS عند تغيرات معينة
-                if (trip.Status != existingTrip.Status)
+                if (!skipSms && trip.Status != existingTrip.Status)
                 {
                     await SendTripSms(trip, trip.Status);
                 }
-                else if (trip.ScheduledFor.HasValue && existingTrip.ScheduledFor.HasValue && trip.ScheduledFor != existingTrip.ScheduledFor)
+                else if (!skipSms && trip.ScheduledFor.HasValue && existingTrip.ScheduledFor.HasValue && trip.ScheduledFor != existingTrip.ScheduledFor)
                 {
                     await SendTripSms(trip, "Postponed");
                 }
@@ -269,13 +291,16 @@ namespace api.Controllers
 
         // POST: api/Trips/5/depart - إرسال إشعار خروج السائق من المكتب
         [HttpPost("{id}/depart")]
-        public async Task<IActionResult> DepartTrip(int id)
+        public async Task<IActionResult> DepartTrip(int id, [FromQuery] bool skipSms = false)
         {
             var trip = await _context.Trips.FindAsync(id);
             if (trip == null) return NotFound();
 
             if (trip.Status != "Scheduled" && trip.Status != "Ongoing")
                 return BadRequest(new { message = "لا يمكن إرسال إشعار الخروج إلا للمشاوير المجدولة أو الجارية." });
+
+            if (skipSms)
+                return Ok(new { message = "تم تسجيل الخروج بدون إرسال رسالة." });
 
             var customer = await _context.Customers.FindAsync(trip.CustomerId);
             var driver = await _context.Drivers.FindAsync(trip.DriverId);

@@ -13,6 +13,7 @@ import ExpensesLog from './pages/ExpensesLog';
 import Wallet from './pages/Wallet';
 import Statements from './pages/Statements';
 import Salaries from './pages/Salaries';
+import DailyReport from './pages/DailyReport';
 import Login from './pages/Login';
 import Users from './pages/Users';
 
@@ -99,7 +100,7 @@ function App() {
 
   return (
     <Router>
-      <div className="app-layout">
+      <div className="app-layout" translate="no">
         {/* Top Navigation Bar */}
         <nav className="top-navbar">
           <div className="navbar-brand">
@@ -132,12 +133,34 @@ function App() {
             <Link to="/wallet" onClick={() => setActivePath('/wallet')} className={`navbar-link ${activePath.includes('/wallet') ? 'active' : ''}`}>
               <span className="link-text">{t('Sidebar.Wallet')}</span>
             </Link>
-            <Link to="/statements" onClick={() => setActivePath('/statements')} className={`navbar-link ${activePath.includes('/statements') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Statements')}</span>
-            </Link>
-            <Link to="/salaries" onClick={() => setActivePath('/salaries')} className={`navbar-link ${activePath.includes('/salaries') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Salaries')}</span>
-            </Link>
+            <div className="navbar-dropdown">
+              <span className={`navbar-link ${activePath.includes('/statement') || activePath.includes('/salaries') || activePath.includes('/daily-report') ? 'active' : ''}`}>
+                <span className="link-text">التقارير ▾</span>
+              </span>
+              <div className="navbar-dropdown-menu">
+                <Link to="/statement-daily" onClick={() => setActivePath('/statement-daily')} className="navbar-dropdown-item">
+                  كشف حساب يومي
+                </Link>
+                <Link to="/statement-monthly" onClick={() => setActivePath('/statement-monthly')} className="navbar-dropdown-item">
+                  كشف حساب شهري
+                </Link>
+                <Link to="/statement-yearly" onClick={() => setActivePath('/statement-yearly')} className="navbar-dropdown-item">
+                  كشف حساب سنوي
+                </Link>
+                <Link to="/salaries" onClick={() => setActivePath('/salaries')} className="navbar-dropdown-item">
+                  {t('Sidebar.Salaries')}
+                </Link>
+                <Link to="/daily-report" onClick={() => setActivePath('/daily-report')} className="navbar-dropdown-item">
+                  التقرير اليومي
+                </Link>
+                <Link to="/monthly-report" onClick={() => setActivePath('/monthly-report')} className="navbar-dropdown-item">
+                  التقرير الشهري
+                </Link>
+                <Link to="/yearly-report" onClick={() => setActivePath('/yearly-report')} className="navbar-dropdown-item">
+                  التقرير السنوي
+                </Link>
+              </div>
+            </div>
             {isAdmin && (
               <Link to="/users" onClick={() => setActivePath('/users')} className={`navbar-link ${activePath.includes('/users') ? 'active' : ''}`}>
                 <span className="link-text">{t('Sidebar.Users')}</span>
@@ -190,8 +213,14 @@ function App() {
               <Link to="/wallet" onClick={() => { setActivePath('/wallet'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/wallet') ? 'active' : ''}`}>
                 {t('Sidebar.Wallet')}
               </Link>
-              <Link to="/statements" onClick={() => { setActivePath('/statements'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statements') ? 'active' : ''}`}>
-                {t('Sidebar.Statements')}
+              <Link to="/statement-daily" onClick={() => { setActivePath('/statement-daily'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-daily') ? 'active' : ''}`}>
+                كشف حساب يومي
+              </Link>
+              <Link to="/statement-monthly" onClick={() => { setActivePath('/statement-monthly'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-monthly') ? 'active' : ''}`}>
+                كشف حساب شهري
+              </Link>
+              <Link to="/statement-yearly" onClick={() => { setActivePath('/statement-yearly'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-yearly') ? 'active' : ''}`}>
+                كشف حساب سنوي
               </Link>
               <Link to="/salaries" onClick={() => { setActivePath('/salaries'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/salaries') ? 'active' : ''}`}>
                 {t('Sidebar.Salaries')}
@@ -225,8 +254,13 @@ function App() {
             <Route path="/expense-create" element={<CreateExpense />} />
             <Route path="/expenses-log" element={<ExpensesLog />} />
             <Route path="/wallet" element={<Wallet />} />
-            <Route path="/statements" element={<Statements />} />
+            <Route path="/statement-daily" element={<Statements period="daily" />} />
+            <Route path="/statement-monthly" element={<Statements period="monthly" />} />
+            <Route path="/statement-yearly" element={<Statements period="yearly" />} />
             <Route path="/salaries" element={<Salaries />} />
+            <Route path="/daily-report" element={<DailyReport period="daily" />} />
+            <Route path="/monthly-report" element={<DailyReport period="monthly" />} />
+            <Route path="/yearly-report" element={<DailyReport period="yearly" />} />
             <Route path="/users" element={isAdmin ? <Users /> : <Navigate to="/" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

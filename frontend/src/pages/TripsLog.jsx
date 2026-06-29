@@ -183,7 +183,7 @@ const TripsLog = ({ userRole }) => {
             onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)'}
             onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'}
             >
-                <div style={{ padding: '0 12px', color: '#a0aec0', display: 'flex' }}>
+                <div style={{ padding: '0 12px', color: 'var(--gray-400)', display: 'flex' }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -202,7 +202,7 @@ const TripsLog = ({ userRole }) => {
                         fontSize: '0.95rem', 
                         outline: 'none', 
                         background: 'transparent',
-                        color: '#2d3748',
+                        color: 'var(--text-dark)',
                         fontFamily: 'inherit',
                         fontWeight: '500'
                     }}
@@ -210,7 +210,7 @@ const TripsLog = ({ userRole }) => {
                 
                 <div style={{
                     marginLeft: '4px',
-                    background: 'linear-gradient(135deg, var(--primary-color) 0%, #2b6cb0 100%)',
+                    background: 'var(--primary-gradient)',
                     color: 'white',
                     padding: '8px 20px',
                     borderRadius: '8px',
@@ -227,7 +227,7 @@ const TripsLog = ({ userRole }) => {
             
             {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem 0' }}>
-                    <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    <div style={{ width: '40px', height: '40px', border: '4px solid var(--gray-200)', borderTopColor: 'var(--primary-color)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 </div>
             ) : (
             <div className="table-responsive">
@@ -254,7 +254,7 @@ const TripsLog = ({ userRole }) => {
                                             {trip.pickupLocation || '?'} -- {trip.dropoffLocation || '?'}
                                         </div>
                                     )}
-                                    <div style={{fontSize: '0.85rem', color: '#6b7280'}}>
+                                    <div style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
                                         {trip.driver?.name}
                                     </div>
                                 </td>
@@ -321,7 +321,7 @@ const TripsLog = ({ userRole }) => {
                         </div>
                         
                         <div className="form-group" style={{marginBottom: '20px'}}>
-                            <label className="form-label" style={{fontWeight: 'bold', color: '#4a5568'}}>{t('TripsLog.ChangeDriver')}</label>
+                            <label className="form-label" style={{fontWeight: 'bold', color: 'var(--gray-600)'}}>{t('TripsLog.ChangeDriver')}</label>
                             <PremiumSelect 
                                 options={drivers.map(d => ({value: d.id, label: d.name}))}
                                 value={newDriverId}
@@ -330,18 +330,18 @@ const TripsLog = ({ userRole }) => {
                             />
                         </div>
                         <div className="form-group" style={{marginBottom: '10px'}}>
-                            <label className="form-label" style={{fontWeight: 'bold', color: '#4a5568'}}>{t('TripsLog.NewDate')}</label>
+                            <label className="form-label" style={{fontWeight: 'bold', color: 'var(--gray-600)'}}>{t('TripsLog.NewDate')}</label>
                             <PremiumDatePicker 
                                 selected={newScheduleDate} 
                                 onChange={setNewScheduleDate} 
                                 minDate={new Date()} 
                                 showTimeSelect={true}
                             />
-                            <p style={{fontSize: '0.8rem', color: '#a0aec0', marginTop: '5px'}}>* {t('TripsLog.NewDateHint') || "يمكنك تغيير الموعد والساعة يدوياً"}</p>
+                            <p style={{fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: '5px'}}>* {t('TripsLog.NewDateHint') || "يمكنك تغيير الموعد والساعة يدوياً"}</p>
                         </div>
                         
                         <div style={{display:'flex', gap:'12px', justifyContent:'flex-end', marginTop:'30px'}}>
-                            <button className="btn" style={{backgroundColor: '#f7fafc', color: '#4a5568', padding: '10px 20px'}} onClick={() => setEditModalOpen(false)}>{t('Common.Cancel')}</button>
+                            <button className="btn" style={{backgroundColor: 'var(--gray-50)', color: 'var(--gray-600)', padding: '10px 20px'}} onClick={() => setEditModalOpen(false)}>{t('Common.Cancel')}</button>
                             <button className="btn btn-primary" style={{padding: '10px 25px', boxShadow: '0 4px 6px rgba(49, 130, 206, 0.2)'}} onClick={confirmEdit}>{t('Common.Save')}</button>
                         </div>
                     </div>

@@ -34,6 +34,37 @@ namespace api.Controllers
             });
         }
 
+        // GET: api/Wallet/daily?date=2026-06-06
+        [HttpGet("daily")]
+        public async Task<ActionResult> GetDailyTransactions([FromQuery] string date)
+        {
+            if (!DateTime.TryParse(date, out var targetDate))
+                return BadRequest("تاريخ غير صالح");
+
+            var startOfDay = targetDate.Date;
+            var endOfDay = startOfDay.AddDays(1);
+
+            var transactions = await _context.WalletTransactions
+                .Include(w => w.Customer)
+                .Include(w => w.Trip)
+                .Where(w => w.TransactionDate >= startOfDay && w.TransactionDate < endOfDay)
+                .OrderBy(w => w.TransactionDate)
+                .Select(w => new {
+                    w.Id,
+                    w.CustomerId,
+                    customerName = w.Customer != null ? w.Customer.Name : "-",
+                    w.Amount,
+                    w.Type,
+                    w.Description,
+                    w.TransactionDate,
+                    w.TripId,
+                    driverId = w.Trip != null ? (int?)w.Trip.DriverId : null
+                })
+                .ToListAsync();
+
+            return Ok(transactions);
+        }
+
         // POST: api/Wallet/Deposit
         [HttpPost("Deposit")]
         public async Task<IActionResult> Deposit([FromBody] DepositRequest request)
