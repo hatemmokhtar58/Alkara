@@ -81,7 +81,10 @@ const Wallet = () => {
                         <div>
                             <h3 style={{ marginBottom: '0.5rem', opacity: 0.9 }}>{t('Wallet.Balance')}</h3>
                             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: walletData.balance > 0 ? '#ffcccc' : (walletData.balance < 0 ? '#ccffcc' : 'white') }}>
-                                {(walletData.balance * -1)} <span style={{fontSize: '1rem'}}>{t('Dashboard.Currency')}</span>
+                                {Math.abs(walletData.balance)} <span style={{fontSize: '1rem'}}>{t('Dashboard.Currency')}</span>
+                            </div>
+                            <div style={{ opacity: 0.9 }}>
+                                {walletData.balance > 0 ? t('Statements.Customer.Owes') : walletData.balance < 0 ? t('Statements.Customer.Owed') : t('Statements.Customer.Settled')}
                             </div>
                         </div>
                         <div style={{ background: 'white', padding: '1.5rem', borderRadius: 'var(--radius-md)', color: 'black', width: '350px' }}>
@@ -134,17 +137,18 @@ const Wallet = () => {
                         </thead>
                         <tbody>
                             {walletData.transactions.map(tData => {
-                                const displayedAmount = tData.amount * -1;
+                                // Positive = charged to the customer, negative = paid by the customer
+                                const isPayment = tData.amount < 0;
                                 const customerObj = customers.find(c => c.id === parseInt(selectedCustomer));
                                 return (
                                     <tr key={tData.id}>
                                         <td><span className="badge" style={{background: 'var(--gray-200)', color: 'var(--gray-800)'}}>{customerObj ? customerObj.name : '-'}</span></td>
                                         <td>{formatDate(tData.transactionDate)}</td>
                                         <td>
-                                            {(tData.type === 'CashDeposit' || tData.type === 'CashCollection') ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
+                                            {isPayment ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
                                         </td>
-                                        <td style={{fontWeight: 'bold', color: displayedAmount > 0 ? 'var(--success-color)' : (displayedAmount < 0 ? 'var(--danger-color)' : 'inherit')}}>
-                                            {displayedAmount > 0 ? `+${displayedAmount}` : displayedAmount} {t('Dashboard.Currency')}
+                                        <td style={{fontWeight: 'bold', color: isPayment ? 'var(--success-color)' : 'var(--danger-color)'}}>
+                                            {isPayment ? `+${Math.abs(tData.amount)}` : `-${tData.amount}`} {t('Dashboard.Currency')}
                                         </td>
                                         <td>{tData.description}</td>
                                         <td>{tData.tripId ? `#${tData.tripId}` : '-'}</td>

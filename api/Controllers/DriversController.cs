@@ -1,4 +1,5 @@
 using api.Auth;
+using api.Dtos;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -59,24 +60,41 @@ namespace api.Controllers
 
         // POST: api/Drivers
         [HttpPost]
-        public async Task<ActionResult<Driver>> PostDriver(Driver driver)
+        public async Task<ActionResult<Driver>> PostDriver(DriverRequest request)
         {
+            var driver = new Driver { Name = request.Name.Trim(), Phone = request.Phone.Trim(), BaseSalary = request.BaseSalary, Status = "Available" };
             _context.Drivers.Add(driver);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetDrivers), new { id = driver.Id }, driver);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutDriver(int id, Driver driver)
+        public async Task<IActionResult> PutDriver(int id, DriverRequest request)
         {
-            if (id != driver.Id)
-            {
-                return BadRequest();
-            }
+            var driver = await _context.Drivers.FindAsync(id);
+            if (driver == null) return NotFound();
 
-            _context.Entry(driver).State = EntityState.Modified;
+            driver.Name = request.Name.Trim();
+            driver.Phone = request.Phone.Trim();
+            driver.BaseSalary = request.BaseSalary;
             await _context.SaveChangesAsync();
 
+            return NoContent();
+        }
+
+        // PUT: api/Drivers/5/status - manual availability; a driver on an ongoing trip stays busy
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> PutDriverStatus(int id, StatusRequest request)
+        {
+            var driver = await _context.Drivers.FindAsync(id);
+            if (driver == null) return NotFound();
+            if (!AvailabilityStatuses.All.Contains(request.Status)) return BadRequest(new { message = "الحالة غير صالحة." });
+
+            var onTrip = await _context.Trips.AnyAsync(t => t.DriverId == id && t.Status == TripStatuses.Ongoing);
+            if (onTrip && request.Status != "Busy") return BadRequest(new { message = "السائق في مشوار جاري حالياً." });
+
+            driver.Status = request.Status;
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 

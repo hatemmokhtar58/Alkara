@@ -8,7 +8,7 @@ namespace api.Models
         public string Category { get; set; } = string.Empty; // Fuel, Oil, Wash, Maintenance, Other
         public decimal Amount { get; set; }
         public string Note { get; set; } = string.Empty;
-        public DateTime Date { get; set; } = DateTime.Now;
+        public DateTime Date { get; set; }
         
         // Optional link to a car
         public int? CarId { get; set; }
