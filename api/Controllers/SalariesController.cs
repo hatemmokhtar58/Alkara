@@ -1,5 +1,6 @@
 using api.Auth;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,76 +11,241 @@ namespace api.Controllers
     [RequirePermission(Permissions.Reports)]
     public class SalariesController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        public const string DefaultCommissionKey = "Salaries.DefaultCommissionPercent";
+        public const decimal FallbackCommissionPercent = 10;
 
-        public SalariesController(AppDbContext context)
+        private readonly AppDbContext _context;
+        private readonly IClock _clock;
+
+        public SalariesController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
-        // GET: api/Salaries?month=5&year=2026&percentage=10
-        [HttpGet]
-        public async Task<ActionResult<object>> GetSalaries([FromQuery] int? month, [FromQuery] int? year, [FromQuery] decimal percentage = 10)
+        public class SalaryUpdateRequest
         {
-            var now = DateTime.Now;
-            int targetMonth = month ?? now.Month;
-            int targetYear = year ?? now.Year;
+            public decimal? BaseSalary { get; set; }
+            // Empty string or null clears the driver's own percentage (back to the default)
+            public decimal? CommissionPercent { get; set; }
+            public bool UseDefaultCommission { get; set; }
+            public decimal Allowances { get; set; }
+            public decimal Deductions { get; set; }
+            public string? Notes { get; set; }
+        }
 
-            var startDate = new DateTime(targetYear, targetMonth, 1);
-            var endDate = startDate.AddMonths(1);
+        public class SettingsRequest
+        {
+            public decimal DefaultCommissionPercent { get; set; }
+        }
 
-            var drivers = await _context.Drivers.ToListAsync();
+        public class PayRequest
+        {
+            public int Year { get; set; }
+            public int Month { get; set; }
+            // Empty pays every driver not yet paid for the month
+            public List<int>? DriverIds { get; set; }
+        }
 
-            // Get completed trips in the period
-            var trips = await _context.Trips
-                .Where(t => t.Status == "Completed" && t.EndTime != null
-                    && t.EndTime >= startDate && t.EndTime < endDate)
-                .ToListAsync();
+        public record SalaryRow(
+            int DriverId, string DriverName, decimal BaseSalary, decimal TotalIncome, decimal TotalExpenses,
+            decimal NetIncome, decimal CommissionPercent, bool UsesDefaultCommission, decimal Commission,
+            decimal Allowances, decimal Deductions, decimal TotalSalary, int TripsCount,
+            string? Notes, bool IsPaid, DateTime? PaidAt);
 
-            // Get fuel expenses only in the period linked to drivers
-            var expenses = await _context.Expenses
-                .Where(e => e.DriverId != null && e.Category == "Fuel" && e.Date >= startDate && e.Date < endDate)
-                .ToListAsync();
-
-            var result = drivers.Select(driver =>
+        // GET: api/Salaries?month=5&year=2026
+        [HttpGet]
+        public async Task<ActionResult<object>> GetSalaries([FromQuery] int? month, [FromQuery] int? year)
+        {
+            var now = _clock.Now;
+            var targetMonth = month ?? now.Month;
+            var targetYear = year ?? now.Year;
+            if (targetMonth < 1 || targetMonth > 12 || targetYear < 2000 || targetYear > 2100)
             {
-                var driverTrips = trips.Where(t => t.DriverId == driver.Id).ToList();
-                var totalIncome = driverTrips.Sum(t => t.FinalTotal);
-                var totalExpenses = expenses.Where(e => e.DriverId == driver.Id).Sum(e => e.Amount);
-                var netIncome = totalIncome - totalExpenses;
-                var commission = netIncome > 0 ? netIncome * (percentage / 100m) : 0;
-                var totalSalary = driver.BaseSalary + commission;
+                return BadRequest(new { message = "الشهر أو السنة غير صالحة." });
+            }
 
-                return new
-                {
-                    driverId = driver.Id,
-                    driverName = driver.Name,
-                    baseSalary = driver.BaseSalary,
-                    totalIncome = totalIncome,
-                    totalExpenses = totalExpenses,
-                    netIncome = netIncome,
-                    commission = commission,
-                    totalSalary = totalSalary,
-                    tripsCount = driverTrips.Count
-                };
-            }).ToList();
+            var rows = await CalculateAsync(targetYear, targetMonth);
+            var defaultPercent = await GetDefaultCommissionAsync();
 
             return Ok(new
             {
                 month = targetMonth,
                 year = targetYear,
-                percentage = percentage,
-                drivers = result,
+                defaultCommissionPercent = defaultPercent,
+                drivers = rows,
                 totals = new
                 {
-                    totalBaseSalary = result.Sum(r => r.baseSalary),
-                    totalIncome = result.Sum(r => r.totalIncome),
-                    totalExpenses = result.Sum(r => r.totalExpenses),
-                    totalNetIncome = result.Sum(r => r.netIncome),
-                    totalCommission = result.Sum(r => r.commission),
-                    totalSalaries = result.Sum(r => r.totalSalary)
+                    totalBaseSalary = rows.Sum(r => r.BaseSalary),
+                    totalIncome = rows.Sum(r => r.TotalIncome),
+                    totalExpenses = rows.Sum(r => r.TotalExpenses),
+                    totalNetIncome = rows.Sum(r => r.NetIncome),
+                    totalCommission = rows.Sum(r => r.Commission),
+                    totalAllowances = rows.Sum(r => r.Allowances),
+                    totalDeductions = rows.Sum(r => r.Deductions),
+                    totalSalaries = rows.Sum(r => r.TotalSalary)
                 }
             });
+        }
+
+        // PUT: api/Salaries/7?month=5&year=2026 - base salary and commission (driver level), allowances and deductions (this month)
+        [HttpPut("{driverId:int}")]
+        public async Task<IActionResult> UpdateDriverSalary(int driverId, [FromQuery] int month, [FromQuery] int year, SalaryUpdateRequest request)
+        {
+            var driver = await _context.Drivers.FindAsync(driverId);
+            if (driver == null) return NotFound(new { message = "السائق غير موجود." });
+
+            if (request.BaseSalary < 0 || request.Allowances < 0 || request.Deductions < 0)
+                return BadRequest(new { message = "المبالغ لا يمكن أن تكون بالسالب." });
+            if (request.CommissionPercent is < 0 or > 100)
+                return BadRequest(new { message = "النسبة يجب أن تكون بين 0 و 100." });
+
+            var record = await GetOrCreateMonthAsync(driverId, year, month);
+            if (record.IsPaid)
+                return BadRequest(new { message = "راتب هذا الشهر تم صرفه ولا يمكن تعديله." });
+
+            if (request.BaseSalary.HasValue) driver.BaseSalary = request.BaseSalary.Value;
+            if (request.UseDefaultCommission) driver.CommissionPercent = null;
+            else if (request.CommissionPercent.HasValue) driver.CommissionPercent = request.CommissionPercent;
+
+            record.Allowances = request.Allowances;
+            record.Deductions = request.Deductions;
+            record.Notes = request.Notes;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // PUT: api/Salaries/settings
+        [HttpPut("settings")]
+        public async Task<IActionResult> UpdateSettings(SettingsRequest request)
+        {
+            if (request.DefaultCommissionPercent < 0 || request.DefaultCommissionPercent > 100)
+                return BadRequest(new { message = "النسبة يجب أن تكون بين 0 و 100." });
+
+            var setting = await _context.AppSettings.FindAsync(DefaultCommissionKey);
+            if (setting == null)
+            {
+                setting = new AppSetting { Key = DefaultCommissionKey };
+                _context.AppSettings.Add(setting);
+            }
+            setting.Value = request.DefaultCommissionPercent.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // POST: api/Salaries/pay - freezes the month's figures for the chosen drivers
+        [HttpPost("pay")]
+        public async Task<IActionResult> Pay(PayRequest request)
+        {
+            if (request.Month < 1 || request.Month > 12) return BadRequest(new { message = "الشهر غير صالح." });
+
+            var rows = await CalculateAsync(request.Year, request.Month);
+            var toPay = rows.Where(r => !r.IsPaid && (request.DriverIds == null || request.DriverIds.Count == 0 || request.DriverIds.Contains(r.DriverId))).ToList();
+            var userId = CurrentUser.Get(HttpContext)?.Id;
+
+            foreach (var row in toPay)
+            {
+                var record = await GetOrCreateMonthAsync(row.DriverId, request.Year, request.Month);
+                record.BaseSalary = row.BaseSalary;
+                record.TotalIncome = row.TotalIncome;
+                record.TotalExpenses = row.TotalExpenses;
+                record.CommissionPercent = row.CommissionPercent;
+                record.Commission = row.Commission;
+                record.TripsCount = row.TripsCount;
+                record.Total = row.TotalSalary;
+                record.IsPaid = true;
+                record.PaidAt = _clock.Now;
+                record.PaidByUserId = userId;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { paid = toPay.Count, total = toPay.Sum(r => r.TotalSalary) });
+        }
+
+        // POST: api/Salaries/7/unpay?month=5&year=2026 - admin reopens a paid salary
+        [RequireAdmin]
+        [HttpPost("{driverId:int}/unpay")]
+        public async Task<IActionResult> Unpay(int driverId, [FromQuery] int month, [FromQuery] int year)
+        {
+            var record = await _context.DriverMonthlySalaries.FirstOrDefaultAsync(s => s.DriverId == driverId && s.Year == year && s.Month == month);
+            if (record == null || !record.IsPaid) return BadRequest(new { message = "هذا الراتب غير مصروف." });
+
+            record.IsPaid = false;
+            record.PaidAt = null;
+            record.PaidByUserId = null;
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        private async Task<List<SalaryRow>> CalculateAsync(int year, int month)
+        {
+            var startDate = new DateTime(year, month, 1);
+            var endDate = startDate.AddMonths(1);
+            var defaultPercent = await GetDefaultCommissionAsync();
+
+            var drivers = await _context.Drivers.OrderBy(d => d.Id).ToListAsync();
+            var records = await _context.DriverMonthlySalaries
+                .Where(s => s.Year == year && s.Month == month)
+                .ToDictionaryAsync(s => s.DriverId);
+
+            var income = await _context.Trips
+                .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= startDate && t.EndTime < endDate)
+                .GroupBy(t => t.DriverId)
+                .Select(g => new { DriverId = g.Key, Total = g.Sum(t => t.FinalTotal), Count = g.Count() })
+                .ToDictionaryAsync(x => x.DriverId);
+
+            // Fuel paid for the driver's work comes off the income the commission is based on.
+            var fuel = await _context.Expenses
+                .Where(e => e.DriverId != null && e.Category == "Fuel" && e.Date >= startDate && e.Date < endDate)
+                .GroupBy(e => e.DriverId!.Value)
+                .Select(g => new { DriverId = g.Key, Total = g.Sum(e => e.Amount) })
+                .ToDictionaryAsync(x => x.DriverId, x => x.Total);
+
+            return drivers.Select(driver =>
+            {
+                records.TryGetValue(driver.Id, out var record);
+
+                if (record is { IsPaid: true })
+                {
+                    return new SalaryRow(driver.Id, driver.Name, record.BaseSalary, record.TotalIncome, record.TotalExpenses,
+                        record.TotalIncome - record.TotalExpenses, record.CommissionPercent, false, record.Commission,
+                        record.Allowances, record.Deductions, record.Total, record.TripsCount, record.Notes, true, record.PaidAt);
+                }
+
+                income.TryGetValue(driver.Id, out var driverIncome);
+                var totalIncome = driverIncome?.Total ?? 0;
+                var totalExpenses = fuel.GetValueOrDefault(driver.Id);
+                var netIncome = totalIncome - totalExpenses;
+                var percent = driver.CommissionPercent ?? defaultPercent;
+                var commission = netIncome > 0 ? Math.Round(netIncome * percent / 100m, 2, MidpointRounding.AwayFromZero) : 0;
+                var allowances = record?.Allowances ?? 0;
+                var deductions = record?.Deductions ?? 0;
+                var total = driver.BaseSalary + commission + allowances - deductions;
+
+                return new SalaryRow(driver.Id, driver.Name, driver.BaseSalary, totalIncome, totalExpenses, netIncome,
+                    percent, driver.CommissionPercent == null, commission, allowances, deductions, total,
+                    driverIncome?.Count ?? 0, record?.Notes, false, null);
+            }).ToList();
+        }
+
+        private async Task<DriverMonthlySalary> GetOrCreateMonthAsync(int driverId, int year, int month)
+        {
+            var record = await _context.DriverMonthlySalaries.FirstOrDefaultAsync(s => s.DriverId == driverId && s.Year == year && s.Month == month);
+            if (record == null)
+            {
+                record = new DriverMonthlySalary { DriverId = driverId, Year = year, Month = month };
+                _context.DriverMonthlySalaries.Add(record);
+            }
+            return record;
+        }
+
+        private async Task<decimal> GetDefaultCommissionAsync()
+        {
+            var setting = await _context.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == DefaultCommissionKey);
+            return setting != null && decimal.TryParse(setting.Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)
+                ? value
+                : FallbackCommissionPercent;
         }
     }
 }

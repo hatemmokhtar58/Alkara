@@ -1,6 +1,7 @@
 using api.Auth;
 using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace api.Controllers
     public class CarsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public CarsController(AppDbContext context)
+        public CarsController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
@@ -32,7 +35,7 @@ namespace api.Controllers
             var carExists = await _context.Cars.AnyAsync(c => c.Id == id);
             if (!carExists) return NotFound("السيارة غير موجودة");
 
-            var today = DateTime.Today;
+            var today = _clock.Now.Date;
 
             // Trips
             var carTrips = await _context.Trips

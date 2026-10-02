@@ -10,6 +10,8 @@ namespace api.Models
         // Status e.g. "Available", "OnTrip", "Offline"
         public string Status { get; set; } = "Available";
         public decimal BaseSalary { get; set; } = 0;
+        // Commission on net income; empty means the company default.
+        public decimal? CommissionPercent { get; set; }
         public ICollection<Trip> Trips { get; set; } = new List<Trip>();
     }
 }

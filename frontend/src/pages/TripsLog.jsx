@@ -83,7 +83,7 @@ const TripsLog = ({ userRole }) => {
         if (!selectedTrip) return;
 
         const changes = {
-            scheduledFor: newScheduleDate ? new Date(newScheduleDate.getTime() - (newScheduleDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 19) : null,
+            scheduledFor: newScheduleDate ? newScheduleDate.toISOString() : null,
             driverId: newDriverId ? parseInt(newDriverId) : null
         };
 

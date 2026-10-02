@@ -1,6 +1,7 @@
 using api.Auth;
 using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace api.Controllers
     public class DriversController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public DriversController(AppDbContext context)
+        public DriversController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         // GET: api/Drivers
@@ -38,7 +41,7 @@ namespace api.Controllers
                 .Where(t => t.DriverId == id && t.Status == "Completed" && t.EndTime != null)
                 .ToListAsync();
 
-            var today = DateTime.Today;
+            var today = _clock.Now.Date;
             
             var todayInc = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
             
