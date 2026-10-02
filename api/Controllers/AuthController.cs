@@ -48,7 +48,8 @@ namespace api.Controllers
 
         private string GenerateJwtToken(User user)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"] ?? "MySuperSecretKeyForAlkaraSystem32Chars!!"));
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]
+                ?? throw new InvalidOperationException("JwtSettings:Secret is not configured.")));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
