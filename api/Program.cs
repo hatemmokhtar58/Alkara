@@ -37,6 +37,16 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi(); // For API documentation
 
 // JWT Authentication Configuration
+// The signing secret is never stored in source control. Set it with the
+// JwtSettings__Secret environment variable (or `dotnet user-secrets` in development).
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+{
+    throw new InvalidOperationException(
+        "JwtSettings:Secret is missing or shorter than 32 bytes. " +
+        "Set the JwtSettings__Secret environment variable (see api/SECRETS.md).");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -48,7 +58,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "AlkaraApi",
             ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "AlkaraReactClient",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"] ?? "MySuperSecretKeyForAlkaraSystem32Chars!!"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
         };
     });
 

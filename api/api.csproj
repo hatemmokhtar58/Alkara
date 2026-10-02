@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
     <RestoreFallbackFolders>clear</RestoreFallbackFolders>
+    <UserSecretsId>alkara-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

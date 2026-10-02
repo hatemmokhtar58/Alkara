@@ -33,7 +33,7 @@ namespace api.Services
 
                 if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(token))
                 {
-                    _logger.LogError("[OurSMS] SMS configuration is missing. Make sure 'OurSms:ApiUrl' and 'OurSms:Token' are set in appsettings.json.");
+                    _logger.LogError("[OurSMS] SMS configuration is missing. Make sure 'OurSms:ApiUrl' and 'OurSms:Token' are configured (the token comes from the OurSms__Token environment variable, see api/SECRETS.md).");
                     return false;
                 }
 
