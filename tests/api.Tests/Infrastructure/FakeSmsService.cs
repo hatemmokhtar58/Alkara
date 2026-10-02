@@ -10,9 +10,9 @@ public class FakeSmsService : ISmsService
 
     public bool ShouldSucceed { get; set; } = true;
 
-    public Task<bool> SendSmsAsync(string phoneNumber, string message)
+    public Task<SmsSendResult> SendSmsAsync(string phoneNumber, string message)
     {
         Sent.Enqueue((phoneNumber, message));
-        return Task.FromResult(ShouldSucceed);
+        return Task.FromResult(ShouldSucceed ? SmsSendResult.Ok() : SmsSendResult.Fail("fake failure"));
     }
 }

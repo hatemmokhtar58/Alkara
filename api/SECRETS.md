@@ -20,6 +20,8 @@ These are only read when the `Users` table is empty, so they can be removed afte
 
 Non-secret settings (`JwtSettings:Issuer`, `JwtSettings:Audience`, `OurSms:ApiUrl`, `OurSms:Src`) stay in `appsettings.json`.
 
+For local development without an OurSms token, set `Sms:Provider` to `Mock` (`Sms__Provider=Mock`): messages are written to the API log instead of being sent. Every attempt, sent or failed, is recorded in the SMS log page (admin only).
+
 ASP.NET Core maps `__` (double underscore) in an environment variable name to `:` in configuration.
 
 ## Generate a JWT secret
