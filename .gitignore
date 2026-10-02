@@ -29,3 +29,7 @@ yarn-error.log*
 # Temp files
 *.sql
 xampp_mysql_err.txt
+
+# Build output and logs
+*.log
+build_errors.txt

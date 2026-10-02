@@ -1,3 +1,4 @@
+using api.Data;
 using api.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -73,34 +74,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
-// We removed EnsureDeleted() because it was wiping the user's data on every restart!
+// Bring the database schema up to date (and seed the first admin on an empty database)
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Make sure database is created safely (but DO NOT DELETE IT!)
-    try 
-    {
-        context.Database.EnsureCreated(); 
-        
-        // Manual schema sync for Permissions column if needed
-        var conn = context.Database.GetDbConnection();
-        conn.Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SHOW COLUMNS FROM Users LIKE 'Permissions';";
-        var columnExists = cmd.ExecuteScalar() != null;
-        
-        if (!columnExists)
-        {
-            cmd.CommandText = "ALTER TABLE Users ADD Permissions LONGTEXT NOT NULL DEFAULT '';";
-            cmd.ExecuteNonQuery();
-            Console.WriteLine("Manual DB Sync: Added 'Permissions' column to Users table.");
-        }
-        conn.Close();
-    } 
-    catch(Exception ex)
-    {
-        Console.WriteLine($"DB Sync Error: {ex.Message}");
-    }
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
+    await DatabaseInitializer.InitializeAsync(context, app.Configuration, logger);
 }
 
 // Configure the HTTP request pipeline.
@@ -119,3 +98,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Exposed so integration tests can host the API with WebApplicationFactory<Program>
+public partial class Program { }

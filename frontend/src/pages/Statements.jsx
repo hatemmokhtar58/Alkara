@@ -3,9 +3,8 @@ import api from '../api';
 import { useTranslation } from 'react-i18next';
 
 const Statements = ({ period = 'daily' }) => {
-    const { t, i18n } = useTranslation();
+    const { i18n } = useTranslation();
     const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
-    const currency = t('Dashboard.Currency');
 
     const [trips, setTrips] = useState([]);
     const [expenses, setExpenses] = useState([]);

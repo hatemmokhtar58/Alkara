@@ -9,7 +9,6 @@ const TripsLog = ({ userRole }) => {
     const { t, i18n } = useTranslation();
     const { showToast } = useToast();
     const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
-    const isAdmin = userRole === 'Admin';
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(true);
     const [drivers, setDrivers] = useState([]); // Array to store drivers for editing

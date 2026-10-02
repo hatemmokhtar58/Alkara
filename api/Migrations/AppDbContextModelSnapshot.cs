@@ -256,24 +256,6 @@ namespace api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            PasswordHash = "$2a$11$uU9hTD0lV6UeOqi2nETZ7uyB0OObYvT8Q4SH0/1/sHcIKXHvHlSY2",
-                            Permissions = "trips,fleet,expenses,wallet,reports,users",
-                            Role = "Admin",
-                            Username = "admin"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            PasswordHash = "$2a$11$Guqr1V9TiFNeL0Vds91Jfu0RiZREtCn7a0kW/UYOiy5IAAUlwaP6q",
-                            Permissions = "trips",
-                            Role = "Employee",
-                            Username = "employee"
-                        });
                 });
 
             modelBuilder.Entity("api.Models.WalletTransaction", b =>
