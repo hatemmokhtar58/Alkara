@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Fleet)]
     public class CustomersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -15,12 +17,14 @@ namespace api.Controllers
             _context = context;
         }
 
+        [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
         {
             return await _context.Customers.ToListAsync();
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Reports, Permissions.Wallet)]
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<object>> GetCustomerStats(int id)
         {
@@ -47,6 +51,7 @@ namespace api.Controllers
             });
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Trips)]
         [HttpPost]
         public async Task<ActionResult<Customer>> PostCustomer(Customer customer)
         {

@@ -37,6 +37,7 @@ public class AlkaraApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("JwtSettings:Secret", JwtSecret);
         builder.UseSetting("InitialAdmin:Username", AdminUsername);
         builder.UseSetting("InitialAdmin:Password", AdminPassword);
+        builder.UseSetting("RateLimiting:LoginPerMinute", "1000");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<ISmsService>();
@@ -55,6 +56,27 @@ public class AlkaraApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     public Task<HttpClient> CreateAdminClientAsync() => CreateClientAsAsync(AdminUsername, AdminPassword);
+
+    /// <summary>Creates an employee through the API and returns a client logged in as them (password already changed).</summary>
+    public async Task<HttpClient> CreateEmployeeClientAsync(string username, params string[] permissions)
+    {
+        var admin = await CreateAdminClientAsync();
+        var created = await admin.PostAsJsonAsync("/api/Users", new
+        {
+            username,
+            password = "Temp-Pass-123",
+            role = "Employee",
+            permissions = string.Join(',', permissions)
+        });
+        created.EnsureSuccessStatusCode();
+
+        var client = await CreateClientAsAsync(username, "Temp-Pass-123");
+        var changed = await client.PostAsJsonAsync("/api/Auth/change-password", new { currentPassword = "Temp-Pass-123", newPassword = EmployeePassword });
+        changed.EnsureSuccessStatusCode();
+        return await CreateClientAsAsync(username, EmployeePassword);
+    }
+
+    public const string EmployeePassword = "Employee-Pass-1";
 
     public Task InitializeAsync() => Task.CompletedTask;
 

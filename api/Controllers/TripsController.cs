@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Trips)]
     public class TripsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,6 +20,7 @@ namespace api.Controllers
         }
 
         // GET: api/Trips
+        [RequirePermission(Permissions.Trips, Permissions.Reports, Permissions.Fleet)]
         [HttpGet]
         public async Task<ActionResult> GetTrips()
         {
@@ -279,6 +282,7 @@ namespace api.Controllers
         }
 
         // GET: api/Trips/test-sms/05xxxxxxxx
+        [RequireAdmin]
         [HttpGet("test-sms/{phoneNumber}")]
         public async Task<IActionResult> TestSms(string phoneNumber)
         {

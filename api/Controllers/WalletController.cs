@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Wallet)]
     public class WalletController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,6 +18,7 @@ namespace api.Controllers
         }
 
         // GET: api/Wallet/{customerId}
+        [RequirePermission(Permissions.Wallet, Permissions.Reports)]
         [HttpGet("{customerId}")]
         public async Task<ActionResult> GetCustomerWallet(int customerId)
         {
@@ -35,6 +38,7 @@ namespace api.Controllers
         }
 
         // GET: api/Wallet/daily?date=2026-06-06
+        [RequirePermission(Permissions.Wallet, Permissions.Reports)]
         [HttpGet("daily")]
         public async Task<ActionResult> GetDailyTransactions([FromQuery] string date)
         {
