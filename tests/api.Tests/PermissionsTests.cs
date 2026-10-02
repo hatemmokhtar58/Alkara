@@ -37,7 +37,8 @@ public class PermissionsTests : IClassFixture<AlkaraApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, (await employee.PostAsJsonAsync("/api/Drivers", new { name = "x", phone = "1" })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await employee.DeleteAsync("/api/Cars/1")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/Users")).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/Trips/test-sms/0500000000")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await employee.PostAsJsonAsync("/api/Sms/test", new { phone = "0500000000" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/Sms/logs")).StatusCode);
         Assert.DoesNotContain(_factory.Sms.Sent, s => s.Phone == "0500000000");
     }
 

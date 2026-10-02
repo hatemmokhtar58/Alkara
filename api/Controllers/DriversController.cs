@@ -65,7 +65,10 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<Driver>> PostDriver(DriverRequest request)
         {
-            var driver = new Driver { Name = request.Name.Trim(), Phone = request.Phone.Trim(), BaseSalary = request.BaseSalary, Status = "Available" };
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var driver = new Driver { Name = request.Name.Trim(), Phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!, BaseSalary = request.BaseSalary, Status = "Available" };
             _context.Drivers.Add(driver);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetDrivers), new { id = driver.Id }, driver);
@@ -77,8 +80,11 @@ namespace api.Controllers
             var driver = await _context.Drivers.FindAsync(id);
             if (driver == null) return NotFound();
 
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
             driver.Name = request.Name.Trim();
-            driver.Phone = request.Phone.Trim();
+            driver.Phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
             driver.BaseSalary = request.BaseSalary;
             await _context.SaveChangesAsync();
 

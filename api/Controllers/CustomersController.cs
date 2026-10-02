@@ -70,7 +70,15 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult> PostCustomer(CustomerRequest request)
         {
-            var customer = new Customer { Name = request.Name.Trim(), Phone = request.Phone.Trim(), CreatedAt = _clock.Now };
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
+            var existing = await _context.Customers.FirstOrDefaultAsync(c => c.Phone == phone);
+            if (existing != null)
+                return Conflict(new { message = $"الرقم {phone} مسجل بالفعل باسم العميل {existing.Name}." });
+
+            var customer = new Customer { Name = request.Name.Trim(), Phone = phone, CreatedAt = _clock.Now };
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, new { customer.Id, customer.Name, customer.Phone, customer.CreatedAt, WalletBalance = 0m });
@@ -82,9 +90,17 @@ namespace api.Controllers
             var customer = await _context.Customers.FindAsync(id);
             if (customer == null) return NotFound();
 
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
+            var existing = await _context.Customers.FirstOrDefaultAsync(c => c.Phone == phone && c.Id != id);
+            if (existing != null)
+                return Conflict(new { message = $"الرقم {phone} مسجل بالفعل باسم العميل {existing.Name}." });
+
             // Only the contact details; the balance comes from wallet transactions.
             customer.Name = request.Name.Trim();
-            customer.Phone = request.Phone.Trim();
+            customer.Phone = phone;
             await _context.SaveChangesAsync();
 
             return NoContent();

@@ -141,7 +141,7 @@ const Drivers = ({ userRole }) => {
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
                         <label className="form-label">{t('Drivers.Phone')}</label>
-                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '120px' }}>
                         <label className="form-label">الراتب الشهري</label>
@@ -329,7 +329,7 @@ const Drivers = ({ userRole }) => {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">{t('Drivers.Phone')}</label>
-                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">الراتب الشهري</label>
