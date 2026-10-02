@@ -37,6 +37,7 @@ const ExpensesLog = () => {
                             <th>{t('ExpensesLog.Driver')}</th>
                             <th>{t('ExpensesLog.Item')}</th>
                             <th>{t('ExpensesLog.Amount')}</th>
+                            <th>بواسطة</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -46,9 +47,10 @@ const ExpensesLog = () => {
                                 <td>{exp.driverName || '-'}</td>
                                 <td><span className="badge badge-warning">{CATEGORY_LABELS[exp.category] || exp.category}</span></td>
                                 <td style={{fontWeight: 'bold', color: 'var(--danger-color)'}}>{exp.amount} {t('Dashboard.Currency')}</td>
+                                <td style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>{exp.createdBy || '-'}</td>
                             </tr>
                         ))}
-                        {expenses.length === 0 && <tr><td colSpan="4" style={{textAlign:'center'}}>{t('ExpensesLog.Empty')}</td></tr>}
+                        {expenses.length === 0 && <tr><td colSpan="5" style={{textAlign:'center'}}>{t('ExpensesLog.Empty')}</td></tr>}
                     </tbody>
                 </table>
                 <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />

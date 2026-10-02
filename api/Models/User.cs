@@ -21,5 +21,8 @@ namespace api.Models
 
         // Bumped on password changes; tokens issued with an older value stop working.
         public int TokenVersion { get; set; }
+
+        // Deleted users are kept so their name still shows on the trips and payments they recorded.
+        public DateTime? DeletedAt { get; set; }
     }
 }

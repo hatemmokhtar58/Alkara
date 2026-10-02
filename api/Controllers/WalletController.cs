@@ -40,7 +40,8 @@ namespace api.Controllers
                     w.Type,
                     w.Description,
                     w.TransactionDate,
-                    w.TripId
+                    w.TripId,
+                    createdBy = _context.Users.IgnoreQueryFilters().Where(u => u.Id == w.CreatedByUserId).Select(u => u.Username).FirstOrDefault()
                 })
                 .ToListAsync();
 

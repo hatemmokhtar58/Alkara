@@ -1,5 +1,6 @@
 using api.Auth;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +12,12 @@ namespace api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public UsersController(AppDbContext context)
+        public UsersController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         public class UserRequest
@@ -111,7 +114,12 @@ namespace api.Controllers
                 return BadRequest(new { message = "لا يمكن حذف آخر مدير في النظام." });
             }
 
-            _context.Users.Remove(user);
+            // Kept for history: the name stays on the trips and payments this user recorded.
+            // The username gets a suffix so it can be used again for a new account.
+            var suffix = $" (محذوف #{user.Id})";
+            user.Username = (user.Username.Length + suffix.Length > 100 ? user.Username[..(100 - suffix.Length)] : user.Username) + suffix;
+            user.DeletedAt = _clock.Now;
+            user.TokenVersion++;
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -130,7 +138,7 @@ namespace api.Controllers
             }
 
             var username = request.Username.Trim();
-            var taken = await _context.Users.AnyAsync(u => u.Username == username && u.Id != existingId);
+            var taken = await _context.Users.IgnoreQueryFilters().AnyAsync(u => u.Username == username && u.Id != existingId);
             return taken ? "اسم المستخدم مستخدم بالفعل." : null;
         }
 

@@ -84,8 +84,9 @@ namespace api.Controllers
         private static string[] ParseStatuses(string? status) =>
             (status ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        private static IQueryable<object> Project(IQueryable<Trip> query)
+        private IQueryable<object> Project(IQueryable<Trip> query)
         {
+            var users = _context.Users.IgnoreQueryFilters();
             return query
                 .Select(t => new {
                     t.Id,
@@ -112,7 +113,8 @@ namespace api.Controllers
                     t.PaidAmount,
                     t.Status,
                     t.PaymentMethod,
-                    t.Notes
+                    t.Notes,
+                    createdBy = users.Where(u => u.Id == t.CreatedByUserId).Select(u => u.Username).FirstOrDefault()
                 });
         }
 
