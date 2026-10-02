@@ -39,7 +39,8 @@ namespace api.Controllers
                 {
                     e.Id, e.Category, e.Amount, e.Note, e.Date, e.DriverId, e.CarId,
                     driverName = e.Driver != null ? e.Driver.Name : null,
-                    carPlate = e.Car != null ? e.Car.PlateNumber : null
+                    carPlate = e.Car != null ? e.Car.PlateNumber : null,
+                    createdBy = _context.Users.IgnoreQueryFilters().Where(u => u.Id == e.CreatedByUserId).Select(u => u.Username).FirstOrDefault()
                 })
                 .ToListAsync();
 

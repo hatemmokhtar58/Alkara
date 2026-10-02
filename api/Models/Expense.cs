@@ -2,7 +2,7 @@ using System;
 
 namespace api.Models
 {
-    public class Expense
+    public class Expense : IHasCreator
     {
         public int Id { get; set; }
         public string Category { get; set; } = string.Empty; // Fuel, Oil, Wash, Maintenance, Other
@@ -17,5 +17,8 @@ namespace api.Models
         // Optional link to a driver
         public int? DriverId { get; set; }
         public Driver? Driver { get; set; }
+
+        // The user who recorded it (users are never hard-deleted, see User.DeletedAt).
+        public int? CreatedByUserId { get; set; }
     }
 }

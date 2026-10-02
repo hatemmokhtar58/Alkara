@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace api.Models
 {
-    public class AppDbContext : DbContext
+    public partial class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -99,6 +99,18 @@ namespace api.Models
             modelBuilder.Entity<WalletTransaction>().HasIndex(w => new { w.CustomerId, w.TransactionDate });
             modelBuilder.Entity<WalletTransaction>().HasIndex(w => w.TransactionDate);
             modelBuilder.Entity<Expense>().HasIndex(e => e.Date);
+
+            modelBuilder.Entity<User>().HasQueryFilter(u => u.DeletedAt == null);
+
+            modelBuilder.Entity<AuditLog>(log =>
+            {
+                log.Property(l => l.Username).HasMaxLength(150);
+                log.Property(l => l.Action).HasMaxLength(30);
+                log.Property(l => l.EntityType).HasMaxLength(50);
+                log.Property(l => l.EntityId).HasMaxLength(100);
+                log.HasIndex(l => l.At);
+                log.HasIndex(l => new { l.EntityType, l.EntityId });
+            });
 
             modelBuilder.Entity<DriverMonthlySalary>(salary =>
             {

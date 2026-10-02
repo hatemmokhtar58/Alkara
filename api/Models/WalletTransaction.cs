@@ -2,7 +2,7 @@ using System;
 
 namespace api.Models
 {
-    public class WalletTransaction
+    public class WalletTransaction : IHasCreator
     {
         public int Id { get; set; }
         
@@ -18,5 +18,8 @@ namespace api.Models
         // ربط اختياري بـ المشوار عشان نعرف الخصم تم على أي مشوار
         public int? TripId { get; set; }
         public Trip? Trip { get; set; }
+
+        // The user who recorded it (users are never hard-deleted, see User.DeletedAt).
+        public int? CreatedByUserId { get; set; }
     }
 }

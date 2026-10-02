@@ -243,7 +243,7 @@ const TripsLog = ({ userRole }) => {
                     <tbody>
                         {trips.map(trip => (
                             <tr key={trip.id}>
-                                <td>#{trip.id}</td>
+                                <td>#{trip.id}{trip.createdBy && <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)' }}>بواسطة {trip.createdBy}</div>}</td>
                                 <td>{trip.customer?.name}</td>
                                 <td>
                                     {(trip.pickupLocation || trip.dropoffLocation) && (

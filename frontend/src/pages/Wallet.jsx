@@ -131,6 +131,7 @@ const Wallet = () => {
                                 <th>{t('Wallet.Amount')}</th>
                                 <th>{t('Wallet.Details')}</th>
                                 <th>{t('Wallet.TripId')}</th>
+                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -150,10 +151,11 @@ const Wallet = () => {
                                         </td>
                                         <td>{tData.description}</td>
                                         <td>{tData.tripId ? `#${tData.tripId}` : '-'}</td>
+                                        <td style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>{tData.createdBy || '-'}</td>
                                     </tr>
                                 );
                             })}
-                            {walletData.transactions.length === 0 && <tr><td colSpan="6" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
+                            {walletData.transactions.length === 0 && <tr><td colSpan="7" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
                         </tbody>
                     </table>
                 </>
