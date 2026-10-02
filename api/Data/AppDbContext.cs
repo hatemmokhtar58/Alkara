@@ -15,6 +15,8 @@ namespace api.Models
         public DbSet<Expense> Expenses { get; set; } = null!;
         public DbSet<WalletTransaction> WalletTransactions { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<AppSetting> AppSettings { get; set; } = null!;
+        public DbSet<DriverMonthlySalary> DriverMonthlySalaries { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,6 +62,25 @@ namespace api.Models
             modelBuilder.Entity<Driver>()
                 .Property(d => d.BaseSalary)
                 .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<AppSetting>(setting =>
+            {
+                setting.HasKey(s => s.Key);
+                setting.Property(s => s.Key).HasMaxLength(100);
+            });
+
+            modelBuilder.Entity<DriverMonthlySalary>(salary =>
+            {
+                salary.HasIndex(s => new { s.DriverId, s.Year, s.Month }).IsUnique();
+                foreach (var property in new[] { "Allowances", "Deductions", "BaseSalary", "TotalIncome", "TotalExpenses", "CommissionPercent", "Commission", "Total" })
+                {
+                    salary.Property(property).HasColumnType("decimal(18,2)");
+                }
+            });
+
+            modelBuilder.Entity<Driver>()
+                .Property(d => d.CommissionPercent)
+                .HasColumnType("decimal(5,2)");
 
             modelBuilder.Entity<WalletTransaction>()
                 .HasOne(w => w.Customer)

@@ -15,7 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(x =>
-    x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles); // Prevent cyclic JSON Reference
+{
+    x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // Prevent cyclic JSON Reference
+    x.JsonSerializerOptions.Converters.Add(new api.Services.SaudiDateTimeConverter());
+});
 
 // Every endpoint requires a logged-in user unless it opts out with [AllowAnonymous]
 builder.Services.AddAuthorization(options =>

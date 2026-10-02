@@ -1,54 +1,103 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
+import { useToast } from '../context/ToastContext';
+
+const readUser = () => {
+  try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+};
 
 export default function Salaries() {
+  const { showToast } = useToast();
+  const isAdmin = readUser().role === 'Admin';
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [percentage, setPercentage] = useState(10);
-  const [deductions, setDeductions] = useState({});
-  const [allowances, setAllowances] = useState({});
-  const [salaryInputs, setSalaryInputs] = useState({});
-  const saveTimers = useRef({});
+  const [edits, setEdits] = useState({}); // driverId -> { baseSalary, commissionPercent, allowances, deductions }
+  const [defaultPercent, setDefaultPercent] = useState('');
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
-  const fetchSalaries = async () => {
+  const fetchSalaries = useCallback(async () => {
+    if (!month || !year) return;
     setLoading(true);
     try {
-      const res = await api.get(`/Salaries?month=${month}&year=${year}&percentage=${percentage}`);
+      const res = await api.get(`/Salaries?month=${month}&year=${year}`);
       setData(res.data);
-      // Initialize salary inputs from backend data
+      setDefaultPercent(res.data.defaultCommissionPercent);
       const inputs = {};
       (res.data.drivers || []).forEach(d => {
-        inputs[d.driverId] = d.baseSalary > 0 ? d.baseSalary : '';
+        inputs[d.driverId] = {
+          baseSalary: d.baseSalary || '',
+          commissionPercent: d.usesDefaultCommission ? '' : d.commissionPercent,
+          allowances: d.allowances || '',
+          deductions: d.deductions || '',
+          notes: d.notes || ''
+        };
       });
-      setSalaryInputs(inputs);
-    } catch (err) { console.error(err); }
+      setEdits(inputs);
+    } catch {
+      // shown by the global error handler
+    }
     setLoading(false);
+  }, [month, year]);
+
+  useEffect(() => { fetchSalaries(); }, [fetchSalaries]);
+
+  const setField = (driverId, field, value) =>
+    setEdits(prev => ({ ...prev, [driverId]: { ...prev[driverId], [field]: value } }));
+
+  // Saved when the field loses focus
+  const saveDriver = async (driverId) => {
+    const e = edits[driverId];
+    try {
+      await api.put(`/Salaries/${driverId}?month=${month}&year=${year}`, {
+        baseSalary: parseFloat(e.baseSalary) || 0,
+        commissionPercent: e.commissionPercent === '' ? null : parseFloat(e.commissionPercent),
+        useDefaultCommission: e.commissionPercent === '',
+        allowances: parseFloat(e.allowances) || 0,
+        deductions: parseFloat(e.deductions) || 0,
+        notes: e.notes || null
+      });
+      fetchSalaries();
+    } catch {
+      fetchSalaries();
+    }
   };
 
-  useEffect(() => { fetchSalaries(); }, [month, year, percentage]);
+  const saveDefaultPercent = async () => {
+    const value = parseFloat(defaultPercent);
+    if (isNaN(value) || value === data?.defaultCommissionPercent) return;
+    try {
+      await api.put('/Salaries/settings', { defaultCommissionPercent: value });
+      showToast('تم حفظ النسبة الافتراضية', 'success');
+      fetchSalaries();
+    } catch {
+      setDefaultPercent(data?.defaultCommissionPercent ?? '');
+    }
+  };
 
-  // Auto-save salary when changed
-  const handleSalaryChange = (driverId, value) => {
-    const numVal = parseFloat(value) || 0;
-    setSalaryInputs(prev => ({ ...prev, [driverId]: value }));
+  const pay = async (driverIds) => {
+    const message = driverIds ? 'تأكيد صرف راتب هذا السائق؟ بعد الصرف الأرقام بتتقفل.' : 'تأكيد صرف رواتب كل السائقين لهذا الشهر؟ بعد الصرف الأرقام بتتقفل.';
+    if (!window.confirm(message)) return;
+    try {
+      const res = await api.post('/Salaries/pay', { year, month, driverIds });
+      showToast(`تم صرف ${res.data.paid} راتب بإجمالي ${res.data.total}`, 'success');
+      fetchSalaries();
+    } catch {
+      // shown by the global error handler
+    }
+  };
 
-    // Clear previous timer
-    if (saveTimers.current[driverId]) clearTimeout(saveTimers.current[driverId]);
-
-    // Auto-save after 800ms
-    saveTimers.current[driverId] = setTimeout(async () => {
-      try {
-        const driverRes = await api.get(`/Drivers/${driverId}`);
-        const driver = driverRes.data;
-        await api.put(`/Drivers/${driverId}`, { ...driver, baseSalary: numVal });
-        fetchSalaries();
-      } catch (err) { console.error(err); }
-    }, 800);
+  const unpay = async (driverId) => {
+    if (!window.confirm('إعادة فتح الراتب للتعديل؟')) return;
+    try {
+      await api.post(`/Salaries/${driverId}/unpay?month=${month}&year=${year}`);
+      fetchSalaries();
+    } catch {
+      // shown by the global error handler
+    }
   };
 
   const c = { border: '1px solid var(--border-color)', padding: '8px 12px', textAlign: 'center' };
@@ -56,28 +105,25 @@ export default function Salaries() {
   const hdr = { background: 'var(--gray-200)', fontWeight: 700 };
   const sub = { background: 'var(--gray-800)', color: '#fff', fontWeight: 800 };
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
+  const fmt = (n, digits = 0) => Number(n || 0).toFixed(digits);
 
   const drivers = data?.drivers || [];
-  const totBaseSalary = drivers.reduce((s, d) => s + (parseFloat(salaryInputs[d.driverId]) || 0), 0);
-  const totIncome = drivers.reduce((s, d) => s + d.totalIncome, 0);
-  const totExpenses = drivers.reduce((s, d) => s + d.totalExpenses, 0);
-  const totNet = drivers.reduce((s, d) => s + d.netIncome, 0);
-  const totCommission = drivers.reduce((s, d) => s + (d.commission || 0), 0);
-  const totAllowances = Object.values(allowances).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  const totDeductions = Object.values(deductions).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const totals = data?.totals;
+  const unpaidCount = drivers.filter(d => !d.isPaid).length;
 
-  const getDriverTotal = (d) => {
-    const base = parseFloat(salaryInputs[d.driverId]) || 0;
-    const comm = d.commission || 0;
-    const allow = parseFloat(allowances[d.driverId]) || 0;
-    const ded = parseFloat(deductions[d.driverId]) || 0;
-    return base + comm + allow - ded;
-  };
-
-  const totTotal = drivers.reduce((s, d) => s + getDriverTotal(d), 0);
+  const numberCell = (d, field, placeholder) => (
+    <td style={c}>
+      {d.isPaid ? fmt(d[field]) : (
+        <input type="number" min="0" value={edits[d.driverId]?.[field] ?? ''} placeholder={placeholder}
+          onChange={(e) => setField(d.driverId, field, e.target.value)}
+          onBlur={() => saveDriver(d.driverId)}
+          style={inputStyle} />
+      )}
+    </td>
+  );
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <h2 style={{ marginBottom: '0.5rem' }}>تقرير الرواتب</h2>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -99,18 +145,26 @@ export default function Salaries() {
             />
           </div>
           <div style={{ textAlign: 'center', marginRight: '12px' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', marginBottom: '3px' }}>النسبة %</div>
-            <input type="text" inputMode="numeric" value={percentage}
-              onChange={(e) => { const v = parseInt(e.target.value); if (v >= 0 && v <= 100) setPercentage(v); else if (e.target.value === '') setPercentage(''); }}
-              onBlur={() => { if (!percentage && percentage !== 0) setPercentage(10); }}
-              style={{ width: '45px', textAlign: 'center', fontWeight: '700', fontSize: '1.1rem', padding: '6px 4px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+            <div style={{ fontSize: '0.7rem', color: 'var(--gray-500)', marginBottom: '3px' }}>النسبة الافتراضية %</div>
+            <input type="number" min="0" max="100" value={defaultPercent}
+              onChange={(e) => setDefaultPercent(e.target.value)}
+              onBlur={saveDefaultPercent}
+              style={{ width: '60px', textAlign: 'center', fontWeight: '700', fontSize: '1.1rem', padding: '6px 4px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
             />
           </div>
-          <button className="btn btn-primary no-print" onClick={() => window.print()} style={{ marginRight: 'auto', marginTop: '14px' }}>طباعة</button>
+          <div className="no-print" style={{ display: 'flex', gap: '8px', marginRight: 'auto', marginTop: '14px' }}>
+            {unpaidCount > 0 && (
+              <button className="btn btn-success" onClick={() => pay(null)}>صرف رواتب الشهر</button>
+            )}
+            <button className="btn btn-primary" onClick={() => window.print()}>طباعة</button>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '8px' }}>
+          العمولة = النسبة × (إيراد المشاوير المنتهية − البنزين). خانة النسبة الفاضية معناها النسبة الافتراضية. التعديلات بتتحفظ أول ما تسيب الخانة.
         </div>
       </div>
 
-      {loading ? (
+      {loading && !data ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-400)' }}>جاري التحميل...</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -123,64 +177,58 @@ export default function Salaries() {
                 <th style={c}>ايراد</th>
                 <th style={c}>بنزين</th>
                 <th style={c}>صافي</th>
+                <th style={c}>النسبة %</th>
                 <th style={c}>عمولة</th>
                 <th style={c}>بدلات</th>
-                <th style={c}>خصم</th>
+                <th style={c}>خصم / سلف</th>
                 <th style={c}>الاجمالي</th>
+                <th style={c} className="no-print">الحالة</th>
               </tr>
             </thead>
             <tbody>
-              {drivers.map((d, i) => {
-                const total = getDriverTotal(d);
-                return (
-                  <tr key={d.driverId}>
-                    <td style={c}>{i + 1}</td>
-                    <td style={cR}>{d.driverName}</td>
-                    <td style={c}>
-                      <input type="number" value={salaryInputs[d.driverId] || ''}
-                        onChange={(e) => handleSalaryChange(d.driverId, e.target.value)}
-                        
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={c}>{d.totalIncome.toFixed(0)}</td>
-                    <td style={{ ...c, color: 'var(--danger-color)' }}>{d.totalExpenses.toFixed(0)}</td>
-                    <td style={c}>{d.netIncome.toFixed(0)}</td>
-                    <td style={c}>{(d.commission || 0).toFixed(1)}</td>
-                    <td style={c}>
-                      <input type="number" value={allowances[d.driverId] || ''}
-                        onChange={(e) => setAllowances({ ...allowances, [d.driverId]: e.target.value })}
-                        
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={c}>
-                      <input type="number" value={deductions[d.driverId] || ''}
-                        onChange={(e) => setDeductions({ ...deductions, [d.driverId]: e.target.value })}
-                        placeholder="0"
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={{ ...c, fontWeight: 700 }}>{total.toFixed(1)}</td>
-                  </tr>
-                );
-              })}
+              {drivers.map((d, i) => (
+                <tr key={d.driverId} style={d.isPaid ? { background: 'var(--success-bg)' } : undefined}>
+                  <td style={c}>{i + 1}</td>
+                  <td style={cR}>{d.driverName}</td>
+                  {numberCell(d, 'baseSalary')}
+                  <td style={c}>{fmt(d.totalIncome)}</td>
+                  <td style={{ ...c, color: 'var(--danger-color)' }}>{fmt(d.totalExpenses)}</td>
+                  <td style={c}>{fmt(d.netIncome)}</td>
+                  {d.isPaid ? <td style={c}>{fmt(d.commissionPercent, 1)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
+                  <td style={c}>{fmt(d.commission, 1)}</td>
+                  {numberCell(d, 'allowances', '0')}
+                  {numberCell(d, 'deductions', '0')}
+                  <td style={{ ...c, fontWeight: 700 }}>{fmt(d.totalSalary, 1)}</td>
+                  <td style={c} className="no-print">
+                    {d.isPaid ? (
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                        <span className="badge badge-success">مصروف</span>
+                        {isAdmin && <button className="btn" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={() => unpay(d.driverId)}>فتح</button>}
+                      </div>
+                    ) : (
+                      <button className="btn btn-success" style={{ padding: '3px 8px', fontSize: '12px' }} onClick={() => pay([d.driverId])}>صرف</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
               {drivers.length === 0 && (
-                <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="10">لا توجد بيانات</td></tr>
+                <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="12">لا توجد بيانات</td></tr>
               )}
             </tbody>
-            {drivers.length > 0 && (
+            {drivers.length > 0 && totals && (
               <tfoot>
                 <tr style={sub}>
                   <td style={{ ...c, border: 'none' }} colSpan="2">مجموع كلي</td>
-                  <td style={{ ...c, border: 'none' }}>{totBaseSalary.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totIncome.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none', color: '#f87171' }}>{totExpenses.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totNet.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totCommission.toFixed(1)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totAllowances.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totDeductions.toFixed(0)}</td>
-                  <td style={{ ...c, border: 'none' }}>{totTotal.toFixed(1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalBaseSalary)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalIncome)}</td>
+                  <td style={{ ...c, border: 'none', color: '#f87171' }}>{fmt(totals.totalExpenses)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalNetIncome)}</td>
+                  <td style={{ ...c, border: 'none' }}></td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalCommission, 1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalAllowances)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalDeductions)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalSalaries, 1)}</td>
+                  <td style={{ ...c, border: 'none' }} className="no-print"></td>
                 </tr>
               </tfoot>
             )}

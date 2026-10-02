@@ -50,7 +50,7 @@ namespace api.Controllers
                 .Where(t => t.CustomerId == id && t.Status == "Completed" && t.EndTime != null)
                 .ToListAsync();
 
-            var today = DateTime.Today;
+            var today = _clock.Now.Date;
             
             var todaySpent = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
             var weekSpent = completedTrips.Where(t => t.EndTime.Value.Date >= today.AddDays(-7)).Sum(t => t.FinalTotal);
