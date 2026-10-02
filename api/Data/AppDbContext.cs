@@ -93,6 +93,13 @@ namespace api.Models
                 log.HasIndex(l => l.SentAt);
             });
 
+            // Reports filter by these columns.
+            modelBuilder.Entity<Trip>().Property(t => t.Status).HasMaxLength(20);
+            modelBuilder.Entity<Trip>().HasIndex(t => new { t.Status, t.EndTime });
+            modelBuilder.Entity<WalletTransaction>().HasIndex(w => new { w.CustomerId, w.TransactionDate });
+            modelBuilder.Entity<WalletTransaction>().HasIndex(w => w.TransactionDate);
+            modelBuilder.Entity<Expense>().HasIndex(e => e.Date);
+
             modelBuilder.Entity<DriverMonthlySalary>(salary =>
             {
                 salary.HasIndex(s => new { s.DriverId, s.Year, s.Month }).IsUnique();

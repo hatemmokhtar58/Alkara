@@ -8,7 +8,6 @@ const Drivers = ({ userRole }) => {
     const { t } = useTranslation();
     const { showToast } = useToast();
     const [drivers, setDrivers] = useState([]);
-    const [trips, setTrips] = useState([]);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [baseSalary, setBaseSalary] = useState('');
@@ -41,11 +40,10 @@ const Drivers = ({ userRole }) => {
 
     const fetchDrivers = () => {
         api.get('/Drivers').then(res => setDrivers(res.data)).catch(console.error);
-        api.get('/Trips').then(res => setTrips(res.data)).catch(console.error);
     }
 
     const driverHasActiveTrip = (driverId) => {
-        return trips.some(t => t.driverId === driverId && t.status === 'Ongoing');
+        return !!drivers.find(d => d.id === driverId)?.onTrip;
     };
 
     const handleAdd = async (e) => {

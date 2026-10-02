@@ -233,6 +233,8 @@ namespace api.Migrations
 
                     b.HasIndex("CarId");
 
+                    b.HasIndex("Date");
+
                     b.HasIndex("DriverId");
 
                     b.ToTable("Expenses");
@@ -355,7 +357,8 @@ namespace api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
 
@@ -364,6 +367,8 @@ namespace api.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("DriverId");
+
+                    b.HasIndex("Status", "EndTime");
 
                     b.ToTable("Trips");
                 });
@@ -437,9 +442,11 @@ namespace api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
+                    b.HasIndex("TransactionDate");
 
                     b.HasIndex("TripId");
+
+                    b.HasIndex("CustomerId", "TransactionDate");
 
                     b.ToTable("WalletTransactions");
                 });
