@@ -24,9 +24,19 @@ namespace api.Controllers
         // GET: api/Drivers
         [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Driver>>> GetDrivers()
+        public async Task<ActionResult> GetDrivers()
         {
-            return await _context.Drivers.ToListAsync();
+            // LastCarId lets the dashboard suggest the car the driver used last.
+            var drivers = await _context.Drivers
+                .OrderBy(d => d.Id)
+                .Select(d => new
+                {
+                    d.Id, d.Name, d.Phone, d.Status, d.BaseSalary, d.CommissionPercent,
+                    lastCarId = d.Trips.OrderByDescending(t => t.Id).Select(t => (int?)t.CarId).FirstOrDefault(),
+                    onTrip = d.Trips.Any(t => t.Status == TripStatuses.Ongoing)
+                })
+                .ToListAsync();
+            return Ok(drivers);
         }
 
         // GET: api/Drivers/5/stats
@@ -37,23 +47,17 @@ namespace api.Controllers
             var driverExists = await _context.Drivers.AnyAsync(d => d.Id == id);
             if (!driverExists) return NotFound();
 
-            var completedTrips = await _context.Trips
-                .Where(t => t.DriverId == id && t.Status == "Completed" && t.EndTime != null)
-                .ToListAsync();
+            var completedTrips = _context.Trips.Where(t => t.DriverId == id && t.Status == TripStatuses.Completed && t.EndTime != null);
+            var since = StatsRanges.From(_clock.Now);
 
-            var today = _clock.Now.Date;
-            
-            var todayInc = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
-            
-            // Week starts from Sunday or roughly last 7 days for simplicity
-            var weekInc = completedTrips.Where(t => t.EndTime.Value.Date >= today.AddDays(-7)).Sum(t => t.FinalTotal);
-            
-            var monthInc = completedTrips.Where(t => t.EndTime.Value.Year == today.Year && t.EndTime.Value.Month == today.Month).Sum(t => t.FinalTotal);
-            
-            var yearInc = completedTrips.Where(t => t.EndTime.Value.Year == today.Year).Sum(t => t.FinalTotal);
+            // "Week" is the last 7 days.
+            var todayInc = await completedTrips.Where(t => t.EndTime >= since.Today).SumAsync(t => t.FinalTotal);
+            var weekInc = await completedTrips.Where(t => t.EndTime >= since.Week).SumAsync(t => t.FinalTotal);
+            var monthInc = await completedTrips.Where(t => t.EndTime >= since.Month).SumAsync(t => t.FinalTotal);
+            var yearInc = await completedTrips.Where(t => t.EndTime >= since.Year).SumAsync(t => t.FinalTotal);
 
             return Ok(new {
-                totalTrips = completedTrips.Count,
+                totalTrips = await completedTrips.CountAsync(),
                 todayIncome = todayInc,
                 weekIncome = weekInc,
                 monthIncome = monthInc,

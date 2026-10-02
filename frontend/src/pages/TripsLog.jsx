@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import PremiumSelect from '../components/PremiumSelect';
 import PremiumDatePicker from '../components/PremiumDatePicker';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../context/ToastContext';
+import Pager from '../components/Pager';
+
+const PAGE_SIZE = 50;
 
 const TripsLog = ({ userRole }) => {
     const { t, i18n } = useTranslation();
@@ -13,6 +16,9 @@ const TripsLog = ({ userRole }) => {
     const [loading, setLoading] = useState(true);
     const [drivers, setDrivers] = useState([]); // Array to store drivers for editing
     const [searchQuery, setSearchQuery] = useState('');
+    const [search, setSearch] = useState(''); // searchQuery after the user stops typing
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
 
     // Completion states
     const [completionModalOpen, setCompletionModalOpen] = useState(false);
@@ -38,23 +44,30 @@ const TripsLog = ({ userRole }) => {
 
 
     useEffect(() => {
-        fetchData();
+        api.get('/Drivers').then(res => setDrivers(res.data)).catch(() => {});
     }, []);
 
-    const fetchData = async () => {
+    useEffect(() => {
+        const timer = setTimeout(() => { setSearch(searchQuery.trim()); setPage(1); }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Search and paging happen on the server so the page never loads every trip.
+    const fetchData = useCallback(async () => {
         try {
-            const [tripsRes, driversRes] = await Promise.all([
-                api.get('/Trips'),
-                api.get('/Drivers')
-            ]);
-            setTrips(tripsRes.data);
-            setDrivers(driversRes.data);
-        } catch (error) {
-            console.error("Error fetching data:", error);
+            const params = new URLSearchParams({ page, pageSize: PAGE_SIZE });
+            if (search) params.set('search', search);
+            const res = await api.get(`/Trips/log?${params}`);
+            setTrips(res.data.items);
+            setTotal(res.data.total);
+        } catch {
+            // The API error message is shown by the global error handler.
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, search]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     const confirmCompletion = async () => {
         if (!selectedTrip) return;
@@ -144,12 +157,6 @@ const TripsLog = ({ userRole }) => {
         }
     }
 
-    const filteredTrips = trips.filter(t => 
-        (t.customer?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-        (t.driver?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-        (t.pickupLocation?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-        (t.dropoffLocation?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-    );
 
     return (
         <div>
@@ -234,7 +241,7 @@ const TripsLog = ({ userRole }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredTrips.map(trip => (
+                        {trips.map(trip => (
                             <tr key={trip.id}>
                                 <td>#{trip.id}</td>
                                 <td>{trip.customer?.name}</td>
@@ -306,6 +313,7 @@ const TripsLog = ({ userRole }) => {
                         {trips.length === 0 && <tr><td colSpan="8" style={{textAlign:'center'}}>{t('TripsLog.Empty')}</td></tr>}
                     </tbody>
                 </table>
+                <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
             </div>
             )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import PremiumSelect from '../components/PremiumSelect';
 import { useTranslation } from 'react-i18next';
@@ -21,19 +21,17 @@ const Wallet = () => {
         api.get('/Customers').then(res => setCustomers(res.data)).catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (selectedCustomer) {
-            fetchWalletInfo();
-        } else {
+    const fetchWalletInfo = useCallback(() => {
+        if (!selectedCustomer) {
             setWalletData({ balance: 0, transactions: [] });
+            return;
         }
-    }, [selectedCustomer]);
-
-    const fetchWalletInfo = () => {
         api.get(`/Wallet/${selectedCustomer}`)
             .then(res => setWalletData(res.data))
-            .catch(console.error);
-    };
+            .catch(() => {});
+    }, [selectedCustomer]);
+
+    useEffect(() => { fetchWalletInfo(); }, [fetchWalletInfo]);
 
     const handleDeposit = async (e) => {
         e.preventDefault();

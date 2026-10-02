@@ -23,16 +23,27 @@ namespace api.Controllers
             _clock = clock;
         }
 
-        // GET: api/Expenses
+        // GET: api/Expenses?page=1&pageSize=50 - newest first
         [RequirePermission(Permissions.Expenses, Permissions.Reports)]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Expense>>> GetExpenses()
+        public async Task<ActionResult> GetExpenses([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
-            return await _context.Expenses
-                .Include(e => e.Car)
-                .Include(e => e.Driver)
-                .OrderByDescending(e => e.Date)
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+
+            var total = await _context.Expenses.CountAsync();
+            var items = await _context.Expenses.AsNoTracking()
+                .OrderByDescending(e => e.Date).ThenByDescending(e => e.Id)
+                .Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(e => new
+                {
+                    e.Id, e.Category, e.Amount, e.Note, e.Date, e.DriverId, e.CarId,
+                    driverName = e.Driver != null ? e.Driver.Name : null,
+                    carPlate = e.Car != null ? e.Car.PlateNumber : null
+                })
                 .ToListAsync();
+
+            return Ok(new { total, page, pageSize, items });
         }
 
         // POST: api/Expenses

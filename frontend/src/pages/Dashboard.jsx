@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
+import { normalizeSaudiMobile } from '../utils/phone';
 import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
 
@@ -61,7 +62,7 @@ const Dashboard = () => {
         try {
             const [driversRes, tripsRes, carsRes, customersRes] = await Promise.all([
                 api.get('/Drivers'),
-                api.get('/Trips'),
+                api.get('/Trips?status=Scheduled,Ongoing'),
                 api.get('/Cars'),
                 api.get('/Customers')
             ]);
@@ -124,8 +125,7 @@ const Dashboard = () => {
         setFoundCustomer(null);
         setNewCustomerName('');
         // Default to the car this driver used last
-        const lastTrip = trips.find(t => t.driverId === driverId && t.carId);
-        setNewCarId(lastTrip ? lastTrip.carId : '');
+        setNewCarId(driver.lastCarId || '');
         setNewPickup('');
         setNewDropoff('');
         setNewPricingType('Hourly');
@@ -137,8 +137,9 @@ const Dashboard = () => {
     // Search customer by phone
     const handlePhoneSearch = (phone) => {
         setNewPhone(phone);
-        if (phone.length >= 10) {
-            const found = customers.find(c => c.phone === phone || c.phone === phone.replace(/^0/, ''));
+        const normalized = normalizeSaudiMobile(phone);
+        if (normalized) {
+            const found = customers.find(c => c.phone === normalized);
             if (found) {
                 setFoundCustomer(found);
                 setNewCustomerName(found.name);
@@ -154,7 +155,7 @@ const Dashboard = () => {
 
     // Submit create trip
     const handleCreateTrip = async () => {
-        if (!selectedDriverId || !newPhone || newPhone.length < 10) {
+        if (!selectedDriverId || !normalizeSaudiMobile(newPhone)) {
             showToast(t('Dashboard.Msg.FillRequired'), 'error');
             return;
         }
@@ -200,9 +201,8 @@ const Dashboard = () => {
             showToast(t('Dashboard.Msg.TripCreated'), 'success');
             setCreateModalOpen(false);
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -218,9 +218,8 @@ const Dashboard = () => {
             await api.post(`/Trips/${row.trip.id}/start` + (!smsEnabled ? '?skipSms=true' : ''));
             showToast(t('Dashboard.Msg.TripStarted'), 'success');
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -301,9 +300,8 @@ const Dashboard = () => {
             setCloseModalOpen(false);
             setClosingTrip(null);
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -319,9 +317,8 @@ const Dashboard = () => {
             await api.post(`/Trips/${row.trip.id}/cancel` + (!smsEnabled ? '?skipSms=true' : ''));
             showToast(t('Dashboard.Msg.TripCancelled'), 'success');
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -336,9 +333,8 @@ const Dashboard = () => {
             const res = await api.post(`/Trips/${row.trip.id}/depart` + (!smsEnabled ? '?skipSms=true' : ''));
             showToast(res.data.message || t('Dashboard.Msg.DepartSent'), 'success');
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };

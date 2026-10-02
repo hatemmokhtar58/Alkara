@@ -1,39 +1,28 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 import { useTranslation } from 'react-i18next';
+import Pager from '../components/Pager';
+
+const PAGE_SIZE = 50;
+const CATEGORY_LABELS = { Fuel: 'بنزين', Oil: 'زيت', Wash: 'غسيل', Maintenance: 'صيانة', Other: 'أخرى' };
 
 const ExpensesLog = () => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
     const [expenses, setExpenses] = useState([]);
-    const [drivers, setDrivers] = useState([]);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            const [expRes, drvRes] = await Promise.all([
-                api.get('/Expenses'),
-                api.get('/Drivers')
-            ]);
-            setExpenses(expRes.data);
-            setDrivers(drvRes.data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
+        api.get(`/Expenses?page=${page}&pageSize=${PAGE_SIZE}`)
+            .then(res => { setExpenses(res.data.items); setTotal(res.data.total); })
+            .catch(() => {});
+    }, [page]);
 
     const formatDate = (timeStr) => {
         if (!timeStr) return '-';
         const date = new Date(timeStr);
         return date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
-    };
-
-    const getDriverName = (driverId) => {
-        const drv = drivers.find(d => d.id === driverId);
-        return drv ? drv.name : '-';
     };
 
     return (
@@ -54,14 +43,15 @@ const ExpensesLog = () => {
                         {expenses.map(exp => (
                             <tr key={exp.id}>
                                 <td>{formatDate(exp.date)}</td>
-                                <td>{getDriverName(exp.driverId)}</td>
-                                <td><span className="badge badge-warning">بنزين</span></td>
+                                <td>{exp.driverName || '-'}</td>
+                                <td><span className="badge badge-warning">{CATEGORY_LABELS[exp.category] || exp.category}</span></td>
                                 <td style={{fontWeight: 'bold', color: 'var(--danger-color)'}}>{exp.amount} {t('Dashboard.Currency')}</td>
                             </tr>
                         ))}
                         {expenses.length === 0 && <tr><td colSpan="4" style={{textAlign:'center'}}>{t('ExpensesLog.Empty')}</td></tr>}
                     </tbody>
                 </table>
+                <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
             </div>
         </div>
     );
