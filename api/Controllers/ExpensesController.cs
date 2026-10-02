@@ -1,5 +1,6 @@
 using api.Auth;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -13,10 +14,12 @@ namespace api.Controllers
     public class ExpensesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public ExpensesController(AppDbContext context)
+        public ExpensesController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         // GET: api/Expenses
@@ -35,7 +38,7 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<Expense>> PostExpense(Expense expense)
         {
-            expense.Date = DateTime.Now;
+            expense.Date = _clock.Now;
             _context.Expenses.Add(expense);
             await _context.SaveChangesAsync();
 

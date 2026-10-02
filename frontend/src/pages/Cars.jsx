@@ -64,7 +64,7 @@ const Cars = () => {
     const handleToggleStatus = async (car) => {
         const newStatus = car.status === 'Available' ? 'Busy' : 'Available';
         try {
-            await api.put(`/Cars/${car.id}`, { ...car, status: newStatus });
+            await api.put(`/Cars/${car.id}/status`, { status: newStatus });
             showToast(t('Common.Success'), 'success');
             fetchCars();
         } catch (err) {

@@ -59,10 +59,12 @@ public class DatabaseStartupTests
         }
 
         var owner = await factory.CreateClientAsAsync("owner", "owner-pass");
-        var customers = await owner.GetFromJsonAsync<List<Customer>>("/api/Customers");
+        var customers = await owner.GetFromJsonAsync<List<CustomerRow>>("/api/Customers");
         var customer = Assert.Single(customers!);
         Assert.Equal("عميل قديم", customer.Name);
+        // The old stored balance survives as an opening adjustment in the wallet ledger.
         Assert.Equal(75, customer.WalletBalance);
+        Assert.Equal(75, await owner.AssertBalanceConsistentAsync(customer.Id));
 
         // Existing users are kept, and no extra admin is created when users already exist.
         var users = await owner.GetFromJsonAsync<List<UserRow>>("/api/Users");
@@ -121,6 +123,8 @@ public class DatabaseStartupTests
         cmd.CommandText = "SELECT COUNT(*) FROM `__EFMigrationsHistory`;";
         return Convert.ToInt64(await cmd.ExecuteScalarAsync());
     }
+
+    private record CustomerRow(int Id, string Name, string Phone, decimal WalletBalance);
 
     private record UserRow(int Id, string Username, string Role, string Permissions, bool MustChangePassword);
 }

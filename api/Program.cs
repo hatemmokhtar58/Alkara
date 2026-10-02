@@ -28,6 +28,9 @@ builder.Services.AddAuthorization(options =>
 // Register HTTP Client for API integrations
 builder.Services.AddHttpClient();
 
+builder.Services.AddSingleton<api.Services.IClock, api.Services.SaudiClock>();
+builder.Services.AddScoped<api.Services.WalletLedger>();
+
 // Register SMS Notification Service
 builder.Services.AddScoped<api.Services.ISmsService, api.Services.OurSmsService>();
 

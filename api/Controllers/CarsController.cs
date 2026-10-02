@@ -1,4 +1,5 @@
 using api.Auth;
+using api.Dtos;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -74,24 +75,43 @@ namespace api.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Car>> PostCar(Car car)
+        public async Task<ActionResult<Car>> PostCar(CarRequest request)
         {
+            var car = new Car { PlateNumber = request.PlateNumber.Trim(), Make = request.Make.Trim(), Model = request.Model.Trim(), Color = request.Color.Trim(), Year = request.Year, Status = "Available" };
             _context.Cars.Add(car);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetCars), new { id = car.Id }, car);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCar(int id, Car car)
+        public async Task<IActionResult> PutCar(int id, CarRequest request)
         {
-            if (id != car.Id)
-            {
-                return BadRequest();
-            }
+            var car = await _context.Cars.FindAsync(id);
+            if (car == null) return NotFound();
 
-            _context.Entry(car).State = EntityState.Modified;
+            car.PlateNumber = request.PlateNumber.Trim();
+            car.Make = request.Make.Trim();
+            car.Model = request.Model.Trim();
+            car.Color = request.Color.Trim();
+            car.Year = request.Year;
             await _context.SaveChangesAsync();
 
+            return NoContent();
+        }
+
+        // PUT: api/Cars/5/status - manual availability; a car on an ongoing trip stays busy
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> PutCarStatus(int id, StatusRequest request)
+        {
+            var car = await _context.Cars.FindAsync(id);
+            if (car == null) return NotFound();
+            if (!AvailabilityStatuses.All.Contains(request.Status)) return BadRequest(new { message = "الحالة غير صالحة." });
+
+            var onTrip = await _context.Trips.AnyAsync(t => t.CarId == id && t.Status == TripStatuses.Ongoing);
+            if (onTrip && request.Status != "Busy") return BadRequest(new { message = "السيارة في مشوار جاري حالياً." });
+
+            car.Status = request.Status;
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 

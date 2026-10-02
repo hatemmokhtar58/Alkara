@@ -9,11 +9,11 @@ namespace api.Models
         public int CustomerId { get; set; }
         public Customer Customer { get; set; } = null!;
         
-        public decimal Amount { get; set; } // الموجب خصم من المحفظة (دين)، السالب إيداع للمحفظة
+        public decimal Amount { get; set; } // موجب = على العميل (مديونية)، سالب = دفع أو رصيد للعميل
         public string Type { get; set; } = "TripDeduction"; // TripDeduction, CashDeposit, CashRefund
         public string Description { get; set; } = string.Empty;
         
-        public DateTime TransactionDate { get; set; } = DateTime.Now;
+        public DateTime TransactionDate { get; set; }
         
         // ربط اختياري بـ المشوار عشان نعرف الخصم تم على أي مشوار
         public int? TripId { get; set; }

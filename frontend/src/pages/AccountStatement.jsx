@@ -80,7 +80,7 @@ const AccountStatement = () => {
     let totalCredit = 0;
 
     if (customerWallet) {
-        sortedTransactions = [...customerWallet.transactions].sort((a, b) => new Date(a.transactionDate) - new Date(b.transactionDate));
+        sortedTransactions = [...customerWallet.transactions].sort((a, b) => (new Date(a.transactionDate) - new Date(b.transactionDate)) || (a.id - b.id));
 
         sortedTransactions.forEach(tr => {
             const d = new Date(tr.transactionDate);
@@ -179,7 +179,7 @@ const AccountStatement = () => {
                                 {periodTransactions.map(tr => (
                                     <tr key={tr.id}>
                                         <td>{formatDate(tr.transactionDate)}</td>
-                                        <td>{tr.type === 'Trip' ? `${t('Wallet.TripBadge')} #${tr.tripId}` : tr.description}</td>
+                                        <td>{tr.description}</td>
                                         <td style={{ textAlign: 'center', color: tr.amount > 0 ? '#ef4444' : 'inherit', fontWeight: 'bold' }}>{tr.amount > 0 ? tr.amount : '-'}</td>
                                         <td style={{ textAlign: 'center', color: tr.amount < 0 ? '#10b981' : 'inherit', fontWeight: 'bold' }}>{tr.amount < 0 ? Math.abs(tr.amount) : '-'}</td>
                                         <td style={{ textAlign: 'center', fontWeight: 'bold' }} dir="ltr">

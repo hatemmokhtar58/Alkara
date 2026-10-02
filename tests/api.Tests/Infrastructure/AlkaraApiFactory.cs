@@ -30,6 +30,8 @@ public class AlkaraApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public FakeSmsService Sms { get; } = new();
 
+    public FakeClock Clock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -42,6 +44,8 @@ public class AlkaraApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<ISmsService>();
             services.AddSingleton<ISmsService>(Sms);
+            services.RemoveAll<IClock>();
+            services.AddSingleton<IClock>(Clock);
         });
     }
 
