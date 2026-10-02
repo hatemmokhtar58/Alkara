@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Reports)]
     public class SalariesController : ControllerBase
     {
         private readonly AppDbContext _context;

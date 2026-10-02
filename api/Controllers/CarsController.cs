@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Fleet)]
     public class CarsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -15,12 +17,14 @@ namespace api.Controllers
             _context = context;
         }
 
+        [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Car>>> GetCars()
         {
             return await _context.Cars.ToListAsync();
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Reports)]
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<object>> GetCarStats(int id)
         {

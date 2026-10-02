@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Fleet)]
     public class DriversController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,6 +18,7 @@ namespace api.Controllers
         }
 
         // GET: api/Drivers
+        [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Driver>>> GetDrivers()
         {
@@ -23,6 +26,7 @@ namespace api.Controllers
         }
 
         // GET: api/Drivers/5/stats
+        [RequirePermission(Permissions.Fleet, Permissions.Reports)]
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<object>> GetDriverStats(int id)
         {

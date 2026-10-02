@@ -19,6 +19,12 @@ namespace api.Models
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<User>(user =>
+            {
+                user.Property(u => u.Username).HasMaxLength(100);
+                user.HasIndex(u => u.Username).IsUnique();
+            });
             
             
             // Decimal precision for Trip

@@ -1,3 +1,4 @@
+using api.Auth;
 using api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Expenses)]
     public class ExpensesController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,6 +20,7 @@ namespace api.Controllers
         }
 
         // GET: api/Expenses
+        [RequirePermission(Permissions.Expenses, Permissions.Reports)]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Expense>>> GetExpenses()
         {

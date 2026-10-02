@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Dashboard from './pages/Dashboard';
@@ -11,74 +11,91 @@ import TripsLog from './pages/TripsLog';
 import CreateExpense from './pages/CreateExpense';
 import ExpensesLog from './pages/ExpensesLog';
 import Wallet from './pages/Wallet';
+import AccountStatement from './pages/AccountStatement';
 import Statements from './pages/Statements';
 import Salaries from './pages/Salaries';
 import DailyReport from './pages/DailyReport';
 import Login from './pages/Login';
 import Users from './pages/Users';
+import ChangePassword from './pages/ChangePassword';
 
+import api from './api';
 import logo from './assets/logo.webp';
 
 import { useToast } from './context/ToastContext';
 
+const ADMIN = 'admin';
+
+// Every page, the permission that opens it, and whether it shows in the top menu or the reports menu.
+const PAGES = [
+  { path: '/', perm: 'trips', label: 'Sidebar.Dashboard', menu: 'main', element: () => <Dashboard /> },
+  { path: '/trips-log', perm: 'trips', label: 'Sidebar.TripsLog', menu: 'main', element: () => <TripsLog /> },
+  { path: '/trip-create', perm: 'trips', element: () => <CreateTrip /> },
+  { path: '/drivers', perm: 'fleet', label: 'Sidebar.Drivers', menu: 'main', element: () => <Drivers /> },
+  { path: '/customers', perm: 'fleet', label: 'Sidebar.Customers', menu: 'main', element: () => <Customers /> },
+  { path: '/cars', perm: 'fleet', label: 'Sidebar.Cars', menu: 'main', element: () => <Cars /> },
+  { path: '/expense-create', perm: 'expenses', label: 'Sidebar.CreateExpense', menu: 'main', element: () => <CreateExpense /> },
+  { path: '/expenses-log', perm: 'expenses', label: 'Sidebar.ExpensesLog', menu: 'main', element: () => <ExpensesLog /> },
+  { path: '/wallet', perm: 'wallet', label: 'Sidebar.Wallet', menu: 'main', element: () => <Wallet /> },
+  { path: '/account-statement', perm: 'wallet', label: 'Sidebar.AccountStatement', menu: 'reports', element: () => <AccountStatement /> },
+  { path: '/statement-daily', perm: 'reports', text: 'كشف حساب يومي', menu: 'reports', element: () => <Statements period="daily" /> },
+  { path: '/statement-monthly', perm: 'reports', text: 'كشف حساب شهري', menu: 'reports', element: () => <Statements period="monthly" /> },
+  { path: '/statement-yearly', perm: 'reports', text: 'كشف حساب سنوي', menu: 'reports', element: () => <Statements period="yearly" /> },
+  { path: '/salaries', perm: 'reports', label: 'Sidebar.Salaries', menu: 'reports', element: () => <Salaries /> },
+  { path: '/daily-report', perm: 'reports', text: 'التقرير اليومي', menu: 'reports', element: () => <DailyReport period="daily" /> },
+  { path: '/monthly-report', perm: 'reports', text: 'التقرير الشهري', menu: 'reports', element: () => <DailyReport period="monthly" /> },
+  { path: '/yearly-report', perm: 'reports', text: 'التقرير السنوي', menu: 'reports', element: () => <DailyReport period="yearly" /> },
+  { path: '/users', perm: ADMIN, label: 'Sidebar.Users', menu: 'main', element: () => <Users /> },
+];
+
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    return null;
+  }
+};
+
 function App() {
-  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
-  const [activePath, setActivePath] = useState(window.location.pathname);
-  
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [user, setUser] = useState(readStoredUser);
+
   useEffect(() => {
-    const handleSystemError = (e) => {
-      showToast(e.detail, 'error');
-    };
+    const handleSystemError = (e) => showToast(e.detail, 'error');
     window.addEventListener('system-error', handleSystemError);
     return () => window.removeEventListener('system-error', handleSystemError);
   }, [showToast]);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const saveUser = useCallback((u) => {
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
+  }, []);
 
-  const [userRole, setUserRole] = useState(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) return 'Employee';
-    const u = JSON.parse(userStr);
-    return u.role || u.Role || 'Employee';
-  });
-  // eslint-disable-next-line no-unused-vars -- wired into the menu by the permissions change
-  const [userPermissions, setUserPermissions] = useState(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) return [];
-    const u = JSON.parse(userStr);
-    const p = u.permissions || u.Permissions || '';
-    return p ? p.split(',') : [];
-  });
-
+  // Role and permissions can change after login, so refresh them from the server on every load.
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const u = JSON.parse(userStr);
-      setUserRole(u.role || u.Role || 'Employee');
-      const p = u.permissions || u.Permissions || '';
-      setUserPermissions(p ? p.split(',') : []);
-    } else {
-      setUserRole('Employee');
-      setUserPermissions([]);
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    setUser(readStoredUser());
+    api.get('/Auth/me').then(res => saveUser(res.data)).catch(() => {});
+  }, [isAuthenticated, saveUser]);
 
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const toggleLanguage = () => {
-    const newLang = i18n.language === 'ar' ? 'en' : 'ar';
-    i18n.changeLanguage(newLang);
-    document.body.dir = newLang === 'ar' ? 'rtl' : 'ltr';
-  };
-
-  const closeSidebar = () => setIsSidebarOpen(false);
+  // The server says this account must set a new password first.
+  useEffect(() => {
+    const handleMustChange = () => setUser(u => (u ? { ...u, mustChangePassword: true } : u));
+    window.addEventListener('must-change-password', handleMustChange);
+    return () => window.removeEventListener('must-change-password', handleMustChange);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    setUser(null);
     setIsAuthenticated(false);
+  };
+
+  const handlePasswordChanged = (data) => {
+    localStorage.setItem('token', data.token);
+    saveUser(data.user);
   };
 
   if (!isAuthenticated) {
@@ -92,177 +109,139 @@ function App() {
     );
   }
 
-  const isAdmin = userRole === 'Admin';
-
   return (
     <Router>
-      <div className="app-layout" translate="no">
-        {/* Top Navigation Bar */}
-        <nav className="top-navbar">
-          <div className="navbar-brand">
-            <img src={logo} alt="Alkara" style={{ height: '36px', objectFit: 'contain' }} />
-          </div>
+      <AppShell user={user} onLogout={handleLogout} onPasswordChanged={handlePasswordChanged} />
+    </Router>
+  );
+}
 
-          <div className="navbar-links">
-            <Link to="/" onClick={() => setActivePath('/')} className={`navbar-link ${activePath === '/' ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Dashboard')}</span>
-            </Link>
+function AppShell({ user, onLogout, onPasswordChanged }) {
+  const { t, i18n } = useTranslation();
+  const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
-            <Link to="/trips-log" onClick={() => setActivePath('/trips-log')} className={`navbar-link ${activePath.includes('/trips-log') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.TripsLog')}</span>
+  const isAdmin = user?.role === 'Admin';
+  const granted = (user?.permissions || '').split(',').filter(Boolean);
+  const canOpen = (perm) => isAdmin || (perm !== ADMIN && granted.includes(perm));
+
+  const pages = PAGES.filter(p => canOpen(p.perm));
+  const mainLinks = pages.filter(p => p.menu === 'main');
+  const reportLinks = pages.filter(p => p.menu === 'reports');
+  const homePath = pages[0]?.path;
+
+  const isActive = (path) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
+  const linkText = (p) => (p.label ? t(p.label) : p.text);
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'ar' ? 'en' : 'ar';
+    i18n.changeLanguage(newLang);
+    document.body.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+  };
+
+  const closeMenu = () => setIsMenuOpen(false);
+
+  if (user?.mustChangePassword || showChangePassword) {
+    return (
+      <ChangePassword
+        forced={!!user?.mustChangePassword}
+        onDone={(data) => { onPasswordChanged(data); setShowChangePassword(false); }}
+        onCancel={() => setShowChangePassword(false)}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  return (
+    <div className="app-layout" translate="no">
+      {/* Top Navigation Bar */}
+      <nav className="top-navbar">
+        <div className="navbar-brand">
+          <img src={logo} alt="Alkara" style={{ height: '36px', objectFit: 'contain' }} />
+        </div>
+
+        <div className="navbar-links">
+          {mainLinks.map(p => (
+            <Link key={p.path} to={p.path} className={`navbar-link ${isActive(p.path) ? 'active' : ''}`}>
+              <span className="link-text">{linkText(p)}</span>
             </Link>
-            <Link to="/drivers" onClick={() => setActivePath('/drivers')} className={`navbar-link ${activePath.includes('/drivers') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Drivers')}</span>
-            </Link>
-            <Link to="/customers" onClick={() => setActivePath('/customers')} className={`navbar-link ${activePath.includes('/customers') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Customers')}</span>
-            </Link>
-            <Link to="/cars" onClick={() => setActivePath('/cars')} className={`navbar-link ${activePath.includes('/cars') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Cars')}</span>
-            </Link>
-            <Link to="/expense-create" onClick={() => setActivePath('/expense-create')} className={`navbar-link ${activePath.includes('/expense-create') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.CreateExpense')}</span>
-            </Link>
-            <Link to="/expenses-log" onClick={() => setActivePath('/expenses-log')} className={`navbar-link ${activePath.includes('/expenses-log') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.ExpensesLog')}</span>
-            </Link>
-            <Link to="/wallet" onClick={() => setActivePath('/wallet')} className={`navbar-link ${activePath.includes('/wallet') ? 'active' : ''}`}>
-              <span className="link-text">{t('Sidebar.Wallet')}</span>
-            </Link>
+          ))}
+          {reportLinks.length > 0 && (
             <div className="navbar-dropdown">
-              <span className={`navbar-link ${activePath.includes('/statement') || activePath.includes('/salaries') || activePath.includes('/daily-report') ? 'active' : ''}`}>
+              <span className={`navbar-link ${reportLinks.some(p => isActive(p.path)) ? 'active' : ''}`}>
                 <span className="link-text">التقارير ▾</span>
               </span>
               <div className="navbar-dropdown-menu">
-                <Link to="/statement-daily" onClick={() => setActivePath('/statement-daily')} className="navbar-dropdown-item">
-                  كشف حساب يومي
-                </Link>
-                <Link to="/statement-monthly" onClick={() => setActivePath('/statement-monthly')} className="navbar-dropdown-item">
-                  كشف حساب شهري
-                </Link>
-                <Link to="/statement-yearly" onClick={() => setActivePath('/statement-yearly')} className="navbar-dropdown-item">
-                  كشف حساب سنوي
-                </Link>
-                <Link to="/salaries" onClick={() => setActivePath('/salaries')} className="navbar-dropdown-item">
-                  {t('Sidebar.Salaries')}
-                </Link>
-                <Link to="/daily-report" onClick={() => setActivePath('/daily-report')} className="navbar-dropdown-item">
-                  التقرير اليومي
-                </Link>
-                <Link to="/monthly-report" onClick={() => setActivePath('/monthly-report')} className="navbar-dropdown-item">
-                  التقرير الشهري
-                </Link>
-                <Link to="/yearly-report" onClick={() => setActivePath('/yearly-report')} className="navbar-dropdown-item">
-                  التقرير السنوي
-                </Link>
+                {reportLinks.map(p => (
+                  <Link key={p.path} to={p.path} className="navbar-dropdown-item">
+                    {linkText(p)}
+                  </Link>
+                ))}
               </div>
             </div>
-            {isAdmin && (
-              <Link to="/users" onClick={() => setActivePath('/users')} className={`navbar-link ${activePath.includes('/users') ? 'active' : ''}`}>
-                <span className="link-text">{t('Sidebar.Users')}</span>
-              </Link>
-            )}
-          </div>
+          )}
+        </div>
 
-          <div className="navbar-actions">
-            <button onClick={toggleLanguage} className="navbar-lang-btn">
-              {i18n.language === 'ar' ? 'EN' : 'AR'}
-            </button>
-            <button onClick={handleLogout} className="navbar-logout-btn">
-              {t('Sidebar.Logout')}
-            </button>
-          </div>
-
-          {/* Mobile hamburger */}
-          <button className="navbar-hamburger" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-            ☰
+        <div className="navbar-actions">
+          <button onClick={() => setShowChangePassword(true)} className="navbar-lang-btn" title="تغيير كلمة المرور">
+            🔑
           </button>
-        </nav>
+          <button onClick={toggleLanguage} className="navbar-lang-btn">
+            {i18n.language === 'ar' ? 'EN' : 'AR'}
+          </button>
+          <button onClick={onLogout} className="navbar-logout-btn">
+            {t('Sidebar.Logout')}
+          </button>
+        </div>
 
-        {/* Mobile dropdown menu */}
-        {isSidebarOpen && (
-          <>
-            <div className="mobile-nav-overlay" onClick={closeSidebar}></div>
-            <div className="mobile-nav-dropdown">
-              <Link to="/" onClick={() => { setActivePath('/'); closeSidebar(); }} className={`mobile-nav-link ${activePath === '/' ? 'active' : ''}`}>
-                {t('Sidebar.Dashboard')}
-              </Link>
+        {/* Mobile hamburger */}
+        <button className="navbar-hamburger" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          ☰
+        </button>
+      </nav>
 
-              <Link to="/trips-log" onClick={() => { setActivePath('/trips-log'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/trips-log') ? 'active' : ''}`}>
-                {t('Sidebar.TripsLog')}
+      {/* Mobile dropdown menu */}
+      {isMenuOpen && (
+        <>
+          <div className="mobile-nav-overlay" onClick={closeMenu}></div>
+          <div className="mobile-nav-dropdown">
+            {[...mainLinks, ...reportLinks].map(p => (
+              <Link key={p.path} to={p.path} onClick={closeMenu} className={`mobile-nav-link ${isActive(p.path) ? 'active' : ''}`}>
+                {linkText(p)}
               </Link>
-              <Link to="/drivers" onClick={() => { setActivePath('/drivers'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/drivers') ? 'active' : ''}`}>
-                {t('Sidebar.Drivers')}
-              </Link>
-              <Link to="/customers" onClick={() => { setActivePath('/customers'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/customers') ? 'active' : ''}`}>
-                {t('Sidebar.Customers')}
-              </Link>
-              <Link to="/cars" onClick={() => { setActivePath('/cars'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/cars') ? 'active' : ''}`}>
-                {t('Sidebar.Cars')}
-              </Link>
-              <Link to="/expense-create" onClick={() => { setActivePath('/expense-create'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/expense-create') ? 'active' : ''}`}>
-                {t('Sidebar.CreateExpense')}
-              </Link>
-              <Link to="/expenses-log" onClick={() => { setActivePath('/expenses-log'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/expenses-log') ? 'active' : ''}`}>
-                {t('Sidebar.ExpensesLog')}
-              </Link>
-              <Link to="/wallet" onClick={() => { setActivePath('/wallet'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/wallet') ? 'active' : ''}`}>
-                {t('Sidebar.Wallet')}
-              </Link>
-              <Link to="/statement-daily" onClick={() => { setActivePath('/statement-daily'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-daily') ? 'active' : ''}`}>
-                كشف حساب يومي
-              </Link>
-              <Link to="/statement-monthly" onClick={() => { setActivePath('/statement-monthly'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-monthly') ? 'active' : ''}`}>
-                كشف حساب شهري
-              </Link>
-              <Link to="/statement-yearly" onClick={() => { setActivePath('/statement-yearly'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/statement-yearly') ? 'active' : ''}`}>
-                كشف حساب سنوي
-              </Link>
-              <Link to="/salaries" onClick={() => { setActivePath('/salaries'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/salaries') ? 'active' : ''}`}>
-                {t('Sidebar.Salaries')}
-              </Link>
-              {isAdmin && (
-                <Link to="/users" onClick={() => { setActivePath('/users'); closeSidebar(); }} className={`mobile-nav-link ${activePath.includes('/users') ? 'active' : ''}`}>
-                  {t('Sidebar.Users')}
-                </Link>
-              )}
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-                <button onClick={() => { toggleLanguage(); closeSidebar(); }} className="navbar-lang-btn" style={{ flex: 1 }}>
-                  {i18n.language === 'ar' ? 'EN' : 'AR'}
-                </button>
-                <button onClick={() => { handleLogout(); closeSidebar(); }} className="navbar-logout-btn" style={{ flex: 1 }}>
-                  {t('Sidebar.Logout')}
-                </button>
-              </div>
+            ))}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+              <button onClick={() => { setShowChangePassword(true); closeMenu(); }} className="navbar-lang-btn" style={{ flex: 1 }}>
+                🔑
+              </button>
+              <button onClick={() => { toggleLanguage(); closeMenu(); }} className="navbar-lang-btn" style={{ flex: 1 }}>
+                {i18n.language === 'ar' ? 'EN' : 'AR'}
+              </button>
+              <button onClick={() => { onLogout(); closeMenu(); }} className="navbar-logout-btn" style={{ flex: 1 }}>
+                {t('Sidebar.Logout')}
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
-        {/* Main Content */}
-        <main className="main-content navbar-main">
+      {/* Main Content */}
+      <main className="main-content navbar-main">
+        {homePath ? (
           <Routes>
-            <Route path="/" element={<Dashboard userRole={userRole} />} />
-            <Route path="/trip-create" element={<CreateTrip userRole={userRole} />} />
-            <Route path="/trips-log" element={<TripsLog userRole={userRole} />} />
-            <Route path="/drivers" element={<Drivers userRole={userRole} />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/cars" element={<Cars />} />
-            <Route path="/expense-create" element={<CreateExpense />} />
-            <Route path="/expenses-log" element={<ExpensesLog />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/statement-daily" element={<Statements period="daily" />} />
-            <Route path="/statement-monthly" element={<Statements period="monthly" />} />
-            <Route path="/statement-yearly" element={<Statements period="yearly" />} />
-            <Route path="/salaries" element={<Salaries />} />
-            <Route path="/daily-report" element={<DailyReport period="daily" />} />
-            <Route path="/monthly-report" element={<DailyReport period="monthly" />} />
-            <Route path="/yearly-report" element={<DailyReport period="yearly" />} />
-            <Route path="/users" element={isAdmin ? <Users /> : <Navigate to="/" />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {pages.map(p => (
+              <Route key={p.path} path={p.path} element={p.element()} />
+            ))}
+            <Route path="*" element={<Navigate to={homePath} replace />} />
           </Routes>
-        </main>
-      </div>
-    </Router>
+        ) : (
+          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+            لا توجد صلاحيات على حسابك حتى الآن. تواصل مع مدير النظام.
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
 
