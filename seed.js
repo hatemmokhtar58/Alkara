@@ -1,9 +1,15 @@
-const http = require('http');
+// Fills a local API with demo data.
+// Usage: ALKARA_USER=admin ALKARA_PASSWORD=... node seed.js
+// Optional: ALKARA_API (default http://localhost:5144/api)
+
+const API = process.env.ALKARA_API || 'http://localhost:5144/api';
+const USER = process.env.ALKARA_USER || 'admin';
+const PASSWORD = process.env.ALKARA_PASSWORD;
 
 const drivers = [
-  { name: "فهد العتيبي", phone: "0501112233", status: "Active" },
-  { name: "سعد القحطاني", phone: "0559988776", status: "Active" },
-  { name: "عبدالله المطيري", phone: "0543322110", status: "Active" }
+  { name: "فهد العتيبي", phone: "0501112233", baseSalary: 3000 },
+  { name: "سعد القحطاني", phone: "0559988776", baseSalary: 3000 },
+  { name: "عبدالله المطيري", phone: "0543322110", baseSalary: 2500 }
 ];
 
 const customers = [
@@ -13,67 +19,74 @@ const customers = [
 ];
 
 const cars = [
-  { plateNumber: "ح ر ف 1234", model: "2023", make: "تويوتا كامري" },
-  { plateNumber: "س ص د 9876", model: "2024", make: "هيونداي سوناتا" },
-  { plateNumber: "ط ع ك 5555", model: "2022", make: "فورد تورس" }
+  { plateNumber: "ح ر ف 1234", make: "تويوتا", model: "كامري", year: 2023 },
+  { plateNumber: "س ص د 9876", make: "هيونداي", model: "سوناتا", year: 2024 },
+  { plateNumber: "ط ع ك 5555", make: "فورد", model: "تورس", year: 2022 }
 ];
 
+// Trips are created as scheduled; start and close them from the dashboard.
 const trips = [
-  { customerId: 1, driverId: 1, carId: 1, pickupLocation: "مطار الملك خالد الدولي", dropoffLocation: "فندق الريتز كارلتون", pricingType: "Fixed", fixedPrice: 150, paymentMethod: "Cash", status: "Scheduled" },
-  { customerId: 2, driverId: 2, carId: 2, pickupLocation: "مول الرياض بارك", dropoffLocation: "حي الملقا", pricingType: "Hourly", hourlyRate: 35, paymentMethod: "Wallet", status: "Completed" },
-  { customerId: 3, driverId: 3, carId: 3, pickupLocation: "محطة قطار سار", dropoffLocation: "جامعة الملك سعود", pricingType: "Fixed", fixedPrice: 85, paymentMethod: "Cash", status: "Completed" }
+  { customerIndex: 0, driverIndex: 0, carIndex: 0, pickupLocation: "مطار الملك خالد الدولي", dropoffLocation: "فندق الريتز كارلتون", pricingType: "Fixed", fixedPrice: 150 },
+  { customerIndex: 1, driverIndex: 1, carIndex: 1, pickupLocation: "مول الرياض بارك", dropoffLocation: "حي الملقا", pricingType: "Hourly", hourlyRate: 35 },
+  { customerIndex: 2, driverIndex: 2, carIndex: 2, pickupLocation: "محطة قطار سار", dropoffLocation: "جامعة الملك سعود", pricingType: "Fixed", fixedPrice: 85 }
 ];
 
 const expenses = [
-  { carId: 1, category: "Fuel", amount: 65.50, note: "بنزين", date: new Date().toISOString() },
-  { carId: 2, category: "Washing", amount: 35, note: "غسيل سيارة داخلي خارجي", date: new Date().toISOString() }
+  { carIndex: 0, driverIndex: 0, category: "Fuel", amount: 65.5, note: "بنزين" },
+  { carIndex: 1, category: "Wash", amount: 35, note: "غسيل سيارة داخلي خارجي" }
 ];
 
-const postData = (path, data) => {
-  return new Promise((resolve, reject) => {
-    const postBody = JSON.stringify(data);
-    const options = {
-      hostname: 'localhost',
-      port: 5144,
-      path: '/api' + path,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postBody)
-      }
-    };
+let token;
 
-    const req = http.request(options, (res) => {
-      res.on('data', () => {});
-      res.on('end', resolve);
-    });
-
-    req.on('error', reject);
-    req.write(postBody);
-    req.end();
+async function call(method, path, body) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body ? JSON.stringify(body) : undefined
   });
-};
-
-async function seed() {
-  try {
-    console.log("Seeding Drivers...");
-    for (const d of drivers) await postData('/Drivers', d);
-    console.log("Seeding Customers...");
-    for (const c of customers) await postData('/Customers', c);
-    console.log("Seeding Cars...");
-    for (const c of cars) await postData('/Cars', c);
-    
-    // الانتظار ثانية واحدة للتأكد من تسجيل البيانات الأساسية
-    await new Promise(r => setTimeout(r, 1000));
-    
-    console.log("Seeding Trips & Expenses...");
-    for (const t of trips) await postData('/Trips', t);
-    for (const e of expenses) await postData('/Expenses', e);
-    
-    console.log("Realistic Seed Data Added Successfully! 🎉");
-  } catch (err) {
-    console.error("Error seeding data", err);
-  }
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${text}`);
+  return text ? JSON.parse(text) : null;
 }
 
-seed();
+async function seed() {
+  if (!PASSWORD) {
+    console.error('Set ALKARA_PASSWORD (and ALKARA_USER if not "admin").');
+    process.exit(1);
+  }
+
+  const login = await call('POST', '/Auth/login', { username: USER, password: PASSWORD });
+  token = login.token;
+
+  console.log('Seeding drivers, customers and cars...');
+  const driverIds = [];
+  for (const d of drivers) driverIds.push((await call('POST', '/Drivers', d)).id);
+  const customerIds = [];
+  for (const c of customers) customerIds.push((await call('POST', '/Customers', c)).id);
+  const carIds = [];
+  for (const c of cars) carIds.push((await call('POST', '/Cars', c)).id);
+
+  console.log('Seeding trips and expenses...');
+  for (const { customerIndex, driverIndex, carIndex, ...trip } of trips) {
+    await call('POST', '/Trips?skipSms=true', {
+      ...trip,
+      customerId: customerIds[customerIndex],
+      driverId: driverIds[driverIndex],
+      carId: carIds[carIndex]
+    });
+  }
+  for (const { carIndex, driverIndex, ...expense } of expenses) {
+    await call('POST', '/Expenses', {
+      ...expense,
+      carId: carIds[carIndex],
+      driverId: driverIndex === undefined ? null : driverIds[driverIndex]
+    });
+  }
+
+  console.log('Demo data added.');
+}
+
+seed().catch(err => {
+  console.error('Seeding failed:', err.message);
+  process.exit(1);
+});

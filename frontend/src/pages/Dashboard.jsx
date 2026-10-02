@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
 
-const Dashboard = ({ userRole }) => {
+const Dashboard = () => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
-    const navigate = useNavigate();
     const { showToast } = useToast();
-    const isAdmin = userRole === 'Admin';
 
     const [selectedDriverId, setSelectedDriverId] = useState(null);
     const [drivers, setDrivers] = useState([]);
@@ -354,8 +351,6 @@ const Dashboard = ({ userRole }) => {
     };
 
     const driverRows = getDriverRows();
-    const activeCount = driverRows.filter(r => r.trip?.status === 'Ongoing').length;
-    const availableCount = driverRows.filter(r => !r.trip || r.trip.status !== 'Ongoing').length;
 
     // Get selected row info for display
     const selectedRow = driverRows.find(r => r.driver.id === selectedDriverId);

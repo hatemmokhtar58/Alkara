@@ -7,7 +7,6 @@ import { useToast } from '../context/ToastContext';
 const Drivers = ({ userRole }) => {
     const { t } = useTranslation();
     const { showToast } = useToast();
-    const isAdmin = userRole === 'Admin';
     const [drivers, setDrivers] = useState([]);
     const [trips, setTrips] = useState([]);
     const [name, setName] = useState('');

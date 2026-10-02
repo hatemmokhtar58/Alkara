@@ -35,7 +35,7 @@ const Login = ({ setAuth }) => {
                 navigate('/');
             }, 600);
             
-        } catch (err) {
+        } catch {
             setIsLoading(false);
             // Global error handler in App.jsx will catch this, 
             // but we can also add specific login error if we want.

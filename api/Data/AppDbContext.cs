@@ -20,10 +20,6 @@ namespace api.Models
         {
             base.OnModelCreating(modelBuilder);
             
-            modelBuilder.Entity<User>().HasData(
-                new User { Id = 1, Username = "admin", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Role = "Admin", Permissions = "trips,fleet,expenses,wallet,reports,users" },
-                new User { Id = 2, Username = "employee", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"), Role = "Employee", Permissions = "trips" }
-            );
             
             // Decimal precision for Trip
             modelBuilder.Entity<Trip>()

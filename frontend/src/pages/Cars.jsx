@@ -77,6 +77,7 @@ const Cars = () => {
     const handleViewStats = async (car) => {
         try {
             const res = await api.get(`/Cars/${car.id}/stats`);
+            setSelectedCarStats(car);
             setCarStatsData(res.data);
             setStatsModalOpen(true);
         } catch(err) {

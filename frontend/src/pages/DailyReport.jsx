@@ -14,7 +14,6 @@ export default function DailyReport({ period = 'daily' }) {
     const [trips, setTrips] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [walletTx, setWalletTx] = useState([]);
-    const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Build date range based on period
@@ -49,14 +48,12 @@ export default function DailyReport({ period = 'daily' }) {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [tripsRes, expensesRes, driversRes] = await Promise.all([
+            const [tripsRes, expensesRes] = await Promise.all([
                 api.get('/Trips'),
                 api.get('/Expenses'),
-                api.get('/Drivers'),
             ]);
             setTrips(tripsRes.data);
             setExpenses(expensesRes.data);
-            setDrivers(driversRes.data);
 
             // Fetch wallet transactions for the date range
             const dates = getWalletDates();

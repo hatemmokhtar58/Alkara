@@ -7,6 +7,17 @@ The API needs two secrets that are **not** stored in the repository:
 | `JwtSettings:Secret` | `JwtSettings__Secret` | Yes, the API refuses to start without it | Signing login tokens. Must be at least 32 bytes. |
 | `OurSms:Token` | `OurSms__Token` | No, but SMS sending fails without it | OurSms API token. |
 
+### First admin account
+
+On an empty database the API creates one admin user. Set its password before the first start:
+
+| Setting | Environment variable | Default |
+|---|---|---|
+| `InitialAdmin:Username` | `InitialAdmin__Username` | `admin` |
+| `InitialAdmin:Password` | `InitialAdmin__Password` | none: a random password is generated and printed once in the API log |
+
+These are only read when the `Users` table is empty, so they can be removed after the first start.
+
 Non-secret settings (`JwtSettings:Issuer`, `JwtSettings:Audience`, `OurSms:ApiUrl`, `OurSms:Src`) stay in `appsettings.json`.
 
 ASP.NET Core maps `__` (double underscore) in an environment variable name to `:` in configuration.
