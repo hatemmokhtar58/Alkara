@@ -10,7 +10,7 @@ A nightly timer backs up the database, keeps 7 days on the server and 30 days on
 
 ## What to buy
 
-- A VPS with at least 2 vCPU, 4 GB RAM and 40 GB disk, Ubuntu 24.04.
+- A VPS with at least 1 vCPU, 2 GB RAM and 40 GB disk, Ubuntu 24.04 (enough for a small team; add the swap file below).
 - A domain. Point an `A` record (for example `app.yourdomain`) at the server's IP.
 - Off-server backup storage that rclone supports (for example a Hetzner Storage Box, Backblaze B2 or Cloudflare R2), ideally at a different provider or location from the server.
 
@@ -22,6 +22,10 @@ As root on the server:
 # Docker and rclone
 curl -fsSL https://get.docker.com | sh
 apt-get install -y rclone git
+
+# 2 GB swap, so a 2 GB RAM server has room during builds and busy moments
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 # Firewall: SSH and the website only
 ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
