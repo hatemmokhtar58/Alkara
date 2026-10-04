@@ -43,6 +43,12 @@ services:
       # Trust X-Forwarded-For from Caddy so login rate limiting sees the real client IP
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       TZ: Asia/Riyadh
+    # Healthy once the API listens, which is after migrations have run
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
 
   web:
     build:
@@ -50,7 +56,8 @@ services:
       dockerfile: deploy/web/Dockerfile
     restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN in .env}
     ports:
