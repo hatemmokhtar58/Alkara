@@ -96,3 +96,46 @@ jobs:
           path: |
             e2e/playwright-report
             e2e/test-results
+
+  deploy:
+    name: Production stack and backup restore
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write a throwaway .env
+        run: |
+          cat > .env <<ENV
+          DOMAIN=localhost
+          MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)
+          MYSQL_PASSWORD=$(openssl rand -hex 16)
+          JWT_SECRET=$(openssl rand -base64 48)
+          INITIAL_ADMIN_USERNAME=admin
+          INITIAL_ADMIN_PASSWORD=Ci-Admin-Pass-123
+          BACKUP_REMOTE=$RUNNER_TEMP/offsite
+          ENV
+      - run: docker compose up -d --build --wait
+      - name: Site and login work over HTTPS
+        run: |
+          for i in $(seq 1 30); do curl -skf https://localhost/ >/dev/null && break; sleep 2; done
+          curl -skf https://localhost/ | grep -q '<div id="root">'
+          curl -skf -X POST https://localhost/api/Auth/login -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"Ci-Admin-Pass-123"}' | grep -q token
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq rclone
+      - name: Back up, lose data, restore
+        env:
+          BACKUP_DIR: ${{ runner.temp }}/backups
+        run: |
+          users() { docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N alkara_db -e "SELECT COUNT(*) FROM Users"'; }
+          before=$(users)
+          sudo -E ./backup.sh
+          docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "DROP DATABASE alkara_db"'
+          sudo -E RESTORE_YES=1 ./restore.sh latest
+          [ "$(users)" = "$before" ]
+          docker compose up -d --wait
+          for i in $(seq 1 30); do curl -skf -X POST https://localhost/api/Auth/login -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"Ci-Admin-Pass-123"}' | grep -q token && exit 0; sleep 2; done; exit 1
+      - if: failure()
+        run: docker compose logs

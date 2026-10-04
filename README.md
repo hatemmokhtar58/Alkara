@@ -15,6 +15,10 @@ Operations and accounting system for a chauffeur business: trips, drivers, cars,
 4. `cd frontend && npm install && npm run dev`
 5. Optional demo data: `ALKARA_PASSWORD=<admin password> node seed.js`
 
+## Deploy
+
+Production setup on one Linux server (Docker Compose, automatic HTTPS, daily off-server database backup): see [deploy/README.md](deploy/README.md).
+
 ## Tests
 
 The tests create and drop their own databases. Point them at a MySQL server with `ALKARA_TEST_MYSQL`

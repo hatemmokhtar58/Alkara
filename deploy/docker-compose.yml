@@ -1,0 +1,67 @@
+# Production stack: MySQL, the API and the web server (frontend + HTTPS).
+# Run from this folder:  docker compose up -d --build
+# Settings come from deploy/.env (copy .env.example and fill it in).
+name: alkara
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: alkara_db
+      MYSQL_USER: alkara
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      TZ: Asia/Riyadh
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=256M
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: server=db;port=3306;database=alkara_db;user=alkara;password=${MYSQL_PASSWORD}
+      JwtSettings__Secret: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OurSms__Token: ${OURSMS_TOKEN:-}
+      InitialAdmin__Username: ${INITIAL_ADMIN_USERNAME:-admin}
+      InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
+      # Trust X-Forwarded-For from Caddy so login rate limiting sees the real client IP
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      TZ: Asia/Riyadh
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
