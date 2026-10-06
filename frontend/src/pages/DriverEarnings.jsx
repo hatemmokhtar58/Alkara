@@ -10,7 +10,7 @@ import { SOURCE_LABELS } from '../components/paymentSources';
 // Commission is paid on this money only, in the month it was received. The server does the math.
 const DriverEarnings = () => {
     const { i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
 
     const range = usePeriod();
     const query = periodQuery('monthly', range);
@@ -29,8 +29,8 @@ const DriverEarnings = () => {
         return () => { cancelled = true; };
     }, [query]);
 
-    const fmtDate = (str) => str ? new Date(str).toLocaleDateString(locale, { day: 'numeric', month: 'short', calendar: 'gregory' }) : '-';
-    const n = (v) => Number(v || 0).toFixed(0);
+    const fmtDate = (str) => str ? new Date(str).toLocaleDateString(locale, { day: 'numeric', month: 'short' }) : '-';
+    const n = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     const drivers = report?.drivers || [];
     const totals = report?.totals;
@@ -45,7 +45,7 @@ const DriverEarnings = () => {
     return (
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ marginBottom: '0.5rem' }}>إيراد السواقين</h2>
+                <h2 style={{ marginBottom: '0.5rem' }}>إيراد السائقين</h2>
                 <p style={{ color: 'var(--gray-500)', margin: '0 0 0.75rem' }}>
                     الفلوس الي دخلت من العملاء في الشهر، موزعة على أقدم المشاوير غير المدفوعة أولاً. العمولة على المحصّل بس.
                 </p>

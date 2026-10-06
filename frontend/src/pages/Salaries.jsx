@@ -113,8 +113,9 @@ export default function Salaries() {
   const hdr = { background: 'var(--gray-200)', fontWeight: 700 };
   const sub = { background: 'var(--gray-800)', color: '#fff', fontWeight: 800 };
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
-  const fmt = (n, digits = 0) => Number(n || 0).toFixed(digits);
-  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', calendar: 'gregory' }) : '-';
+  // 3,016 or 12.5: thousands separated, no trailing .0
+  const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA-u-ca-gregory', { day: 'numeric', month: 'short' }) : '-';
 
   const drivers = data?.drivers || [];
   const totals = data?.totals;
@@ -190,7 +191,7 @@ export default function Salaries() {
                 <th style={c}>عمولة</th>
                 <th style={c}>بدلات</th>
                 <th style={c}>خصم / سلف</th>
-                <th style={c}>الاجمالي</th>
+                <th style={c}>الإجمالي</th>
                 <th style={c} className="no-print">الحالة</th>
               </tr>
             </thead>
@@ -210,11 +211,11 @@ export default function Salaries() {
                   <td style={c}>{fmt(d.totalIncome)}</td>
                   <td style={{ ...c, color: 'var(--danger-color)' }}>{fmt(d.totalExpenses)}</td>
                   <td style={c}>{fmt(d.netIncome)}</td>
-                  {d.isPaid ? <td style={c}>{fmt(d.commissionPercent, 1)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
-                  <td style={c}>{fmt(d.commission, 1)}</td>
+                  {d.isPaid ? <td style={c}>{fmt(d.commissionPercent)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
+                  <td style={c}>{fmt(d.commission)}</td>
                   {numberCell(d, 'allowances', '0')}
                   {numberCell(d, 'deductions', '0')}
-                  <td style={{ ...c, fontWeight: 700 }}>{fmt(d.totalSalary, 1)}</td>
+                  <td style={{ ...c, fontWeight: 700 }}>{fmt(d.totalSalary)}</td>
                   <td style={c} className="no-print">
                     {d.isPaid ? (
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
@@ -275,10 +276,10 @@ export default function Salaries() {
                   <td style={{ ...c, border: 'none', color: '#f87171' }}>{fmt(totals.totalExpenses)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalNetIncome)}</td>
                   <td style={{ ...c, border: 'none' }}></td>
-                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalCommission, 1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalCommission)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalAllowances)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalDeductions)}</td>
-                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalSalaries, 1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalSalaries)}</td>
                   <td style={{ ...c, border: 'none' }} className="no-print"></td>
                 </tr>
               </tfoot>

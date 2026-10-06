@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext';
 const Customers = () => {
     const { t, i18n } = useTranslation();
     const { showToast } = useToast();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
     const [customers, setCustomers] = useState([]);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');

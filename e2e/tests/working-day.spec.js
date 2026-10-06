@@ -140,7 +140,7 @@ test('a full working day', async ({ page, browser }) => {
   await test.step('salary: 3000 + 10% of (200 - 40) = 3016, then paid and frozen', async () => {
     await page.goto('/salaries');
     const row = page.locator('tbody tr', { hasText: DRIVER.name });
-    await expect(row).toContainText('3016.0');
+    await expect(row).toContainText('3,016');
     await row.getByRole('button', { name: 'صرف' }).click();
     await expect(row).toContainText('مصروف');
     await expect(row.locator('input')).toHaveCount(0);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import PremiumSelect from '../components/PremiumSelect';
 import { useTranslation } from 'react-i18next';
+import PageTabs from '../components/PageTabs';
 
 import { useToast } from '../context/ToastContext';
 
@@ -45,6 +46,10 @@ const CreateExpense = () => {
 
     return (
         <div>
+            <PageTabs tabs={[
+                { path: '/expense-create', label: 'إضافة مصروف' },
+                { path: '/expenses-log', label: 'سجل المصروفات' },
+            ]} />
             <h1 className="page-title">{t('CreateExpense.Title')}</h1>
             
             <div className="card" style={{ marginBottom: '2rem' }}>

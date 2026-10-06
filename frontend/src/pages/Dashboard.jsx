@@ -7,7 +7,7 @@ import PremiumSelect from '../components/PremiumSelect';
 
 const Dashboard = () => {
     const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
     const { showToast } = useToast();
 
     const [selectedDriverId, setSelectedDriverId] = useState(null);

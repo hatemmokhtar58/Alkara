@@ -29,7 +29,9 @@ import { useToast } from './context/ToastContext';
 
 const ADMIN = 'admin';
 
-// Every page, the permission that opens it, and whether it shows in the top menu or the reports menu.
+// Every page, the permission that opens it, and where it shows: the top menu, or a group in the reports menu.
+// Pages without a menu are reached from tabs on a related page (daily / monthly / yearly, add / log);
+// `also` lists them so the menu entry stays highlighted there.
 const PAGES = [
   { path: '/', perm: 'trips', label: 'Sidebar.Dashboard', menu: 'main', element: () => <Dashboard /> },
   { path: '/trips-log', perm: 'trips', label: 'Sidebar.TripsLog', menu: 'main', element: () => <TripsLog /> },
@@ -37,21 +39,22 @@ const PAGES = [
   { path: '/drivers', perm: 'fleet', label: 'Sidebar.Drivers', menu: 'main', element: () => <Drivers /> },
   { path: '/customers', perm: 'fleet', label: 'Sidebar.Customers', menu: 'main', element: () => <Customers /> },
   { path: '/cars', perm: 'fleet', label: 'Sidebar.Cars', menu: 'main', element: () => <Cars /> },
-  { path: '/expense-create', perm: 'expenses', label: 'Sidebar.CreateExpense', menu: 'main', element: () => <CreateExpense /> },
-  { path: '/expenses-log', perm: 'expenses', label: 'Sidebar.ExpensesLog', menu: 'main', element: () => <ExpensesLog /> },
+  { path: '/expenses-log', perm: 'expenses', label: 'Sidebar.Expenses', menu: 'main', also: ['/expense-create'], element: () => <ExpensesLog /> },
+  { path: '/expense-create', perm: 'expenses', element: () => <CreateExpense /> },
   { path: '/wallet', perm: 'wallet', label: 'Sidebar.Wallet', menu: 'main', element: () => <Wallet /> },
-  { path: '/account-statement', perm: 'wallet', label: 'Sidebar.AccountStatement', menu: 'reports', element: () => <AccountStatement /> },
-  { path: '/statement-daily', perm: 'reports', text: 'كشف حساب يومي', menu: 'reports', element: () => <Statements period="daily" /> },
-  { path: '/statement-monthly', perm: 'reports', text: 'كشف حساب شهري', menu: 'reports', element: () => <Statements period="monthly" /> },
-  { path: '/statement-yearly', perm: 'reports', text: 'كشف حساب سنوي', menu: 'reports', element: () => <Statements period="yearly" /> },
-  { path: '/driver-earnings', perm: 'reports', text: 'إيراد السواقين', menu: 'reports', element: () => <DriverEarnings /> },
-  { path: '/salaries', perm: 'reports', label: 'Sidebar.Salaries', menu: 'reports', element: () => <Salaries /> },
-  { path: '/daily-report', perm: 'reports', text: 'التقرير اليومي', menu: 'reports', element: () => <DailyReport period="daily" /> },
-  { path: '/monthly-report', perm: 'reports', text: 'التقرير الشهري', menu: 'reports', element: () => <DailyReport period="monthly" /> },
-  { path: '/yearly-report', perm: 'reports', text: 'التقرير السنوي', menu: 'reports', element: () => <DailyReport period="yearly" /> },
   { path: '/users', perm: ADMIN, label: 'Sidebar.Users', menu: 'main', element: () => <Users /> },
-  { path: '/sms-log', perm: ADMIN, text: 'سجل الرسائل', menu: 'reports', element: () => <SmsLog /> },
-  { path: '/audit-log', perm: ADMIN, text: 'سجل التعديلات', menu: 'reports', element: () => <AuditLog /> },
+
+  { path: '/daily-report', perm: 'reports', text: 'حركة الصندوق', menu: 'reports', group: 'الفلوس', also: ['/monthly-report', '/yearly-report'], element: () => <DailyReport period="daily" /> },
+  { path: '/monthly-report', perm: 'reports', element: () => <DailyReport period="monthly" /> },
+  { path: '/yearly-report', perm: 'reports', element: () => <DailyReport period="yearly" /> },
+  { path: '/statement-daily', perm: 'reports', text: 'كشف حساب السائقين', menu: 'reports', group: 'الفلوس', also: ['/statement-monthly', '/statement-yearly'], element: () => <Statements period="daily" /> },
+  { path: '/statement-monthly', perm: 'reports', element: () => <Statements period="monthly" /> },
+  { path: '/statement-yearly', perm: 'reports', element: () => <Statements period="yearly" /> },
+  { path: '/account-statement', perm: 'wallet', label: 'Sidebar.AccountStatement', menu: 'reports', group: 'الفلوس', element: () => <AccountStatement /> },
+  { path: '/driver-earnings', perm: 'reports', text: 'إيراد السائقين', menu: 'reports', group: 'السائقين', element: () => <DriverEarnings /> },
+  { path: '/salaries', perm: 'reports', label: 'Sidebar.Salaries', menu: 'reports', group: 'السائقين', element: () => <Salaries /> },
+  { path: '/sms-log', perm: ADMIN, text: 'سجل الرسائل', menu: 'reports', group: 'السجلات', element: () => <SmsLog /> },
+  { path: '/audit-log', perm: ADMIN, text: 'سجل التعديلات', menu: 'reports', group: 'السجلات', element: () => <AuditLog /> },
 ];
 
 const readStoredUser = () => {
@@ -138,6 +141,13 @@ function AppShell({ user, onLogout, onPasswordChanged }) {
   const homePath = pages[0]?.path;
 
   const isActive = (path) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
+  const isActivePage = (p) => isActive(p.path) || (p.also || []).some(isActive);
+  // Reports menu entries under their group titles, in PAGES order
+  const reportGroups = reportLinks.reduce((groups, p) => {
+    const last = groups[groups.length - 1];
+    if (last?.title === p.group) last.links.push(p); else groups.push({ title: p.group, links: [p] });
+    return groups;
+  }, []);
   const linkText = (p) => (p.label ? t(p.label) : p.text);
 
   const toggleLanguage = () => {
@@ -169,20 +179,25 @@ function AppShell({ user, onLogout, onPasswordChanged }) {
 
         <div className="navbar-links">
           {mainLinks.map(p => (
-            <Link key={p.path} to={p.path} className={`navbar-link ${isActive(p.path) ? 'active' : ''}`}>
+            <Link key={p.path} to={p.path} className={`navbar-link ${isActivePage(p) ? 'active' : ''}`}>
               <span className="link-text">{linkText(p)}</span>
             </Link>
           ))}
           {reportLinks.length > 0 && (
             <div className="navbar-dropdown">
-              <span className={`navbar-link ${reportLinks.some(p => isActive(p.path)) ? 'active' : ''}`}>
+              <span className={`navbar-link ${reportLinks.some(isActivePage) ? 'active' : ''}`}>
                 <span className="link-text">التقارير ▾</span>
               </span>
               <div className="navbar-dropdown-menu">
-                {reportLinks.map(p => (
-                  <Link key={p.path} to={p.path} className="navbar-dropdown-item">
-                    {linkText(p)}
-                  </Link>
+                {reportGroups.map(g => (
+                  <div key={g.title} className="navbar-dropdown-section">
+                    <div className="navbar-dropdown-group">{g.title}</div>
+                    {g.links.map(p => (
+                      <Link key={p.path} to={p.path} className="navbar-dropdown-item">
+                        {linkText(p)}
+                      </Link>
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>
@@ -212,10 +227,20 @@ function AppShell({ user, onLogout, onPasswordChanged }) {
         <>
           <div className="mobile-nav-overlay" onClick={closeMenu}></div>
           <div className="mobile-nav-dropdown">
-            {[...mainLinks, ...reportLinks].map(p => (
-              <Link key={p.path} to={p.path} onClick={closeMenu} className={`mobile-nav-link ${isActive(p.path) ? 'active' : ''}`}>
+            {mainLinks.map(p => (
+              <Link key={p.path} to={p.path} onClick={closeMenu} className={`mobile-nav-link ${isActivePage(p) ? 'active' : ''}`}>
                 {linkText(p)}
               </Link>
+            ))}
+            {reportGroups.map(g => (
+              <div key={g.title}>
+                <div className="mobile-nav-group">{g.title}</div>
+                {g.links.map(p => (
+                  <Link key={p.path} to={p.path} onClick={closeMenu} className={`mobile-nav-link ${isActivePage(p) ? 'active' : ''}`}>
+                    {linkText(p)}
+                  </Link>
+                ))}
+              </div>
             ))}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
               <button onClick={() => { setShowChangePassword(true); closeMenu(); }} className="navbar-lang-btn" style={{ flex: 1 }}>

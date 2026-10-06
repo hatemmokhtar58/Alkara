@@ -1640,3 +1640,14 @@ h1.page-title {
   padding: 0.5rem;
 }
 
+
+/* Tabs between related pages (daily / monthly / yearly, add / log) */
+.page-tabs { display: flex; justify-content: center; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+.page-tab { padding: 6px 18px; border-radius: 999px; border: 1px solid var(--border-color); background: #fff; color: var(--gray-700, #374151); font-weight: 600; text-decoration: none; transition: background 0.15s, color 0.15s; }
+.page-tab:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.page-tab.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+
+/* Section titles inside the reports menu */
+.navbar-dropdown-group { padding: 8px 1rem 2px; font-size: 0.72rem; font-weight: 700; color: var(--gray-500); }
+.navbar-dropdown-section + .navbar-dropdown-section { border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px; }
+.mobile-nav-group { padding: 8px 12px 2px; font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.5); }
