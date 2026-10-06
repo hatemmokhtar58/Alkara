@@ -77,9 +77,6 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<decimal>("WalletBalance")
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.ToTable("Customers");
@@ -94,7 +91,7 @@ namespace api.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("BaseSalary")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -164,6 +161,9 @@ namespace api.Migrations
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("DepartedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("DiscountType")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -180,6 +180,9 @@ namespace api.Migrations
                     b.Property<DateTime?>("EndTime")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<decimal>("ExtraCharge")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("FinalTotal")
                         .HasColumnType("decimal(18,2)");
 
@@ -193,7 +196,7 @@ namespace api.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<decimal>("PaidAmount")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
@@ -350,7 +353,7 @@ namespace api.Migrations
             modelBuilder.Entity("api.Models.WalletTransaction", b =>
                 {
                     b.HasOne("api.Models.Customer", "Customer")
-                        .WithMany()
+                        .WithMany("WalletTransactions")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -374,6 +377,8 @@ namespace api.Migrations
             modelBuilder.Entity("api.Models.Customer", b =>
                 {
                     b.Navigation("Trips");
+
+                    b.Navigation("WalletTransactions");
                 });
 
             modelBuilder.Entity("api.Models.Driver", b =>

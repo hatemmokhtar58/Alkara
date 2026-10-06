@@ -67,7 +67,7 @@ const Drivers = ({ userRole }) => {
         }
         const newStatus = driver.status === 'Available' ? 'Busy' : 'Available';
         try {
-            await api.put(`/Drivers/${driver.id}`, { ...driver, status: newStatus });
+            await api.put(`/Drivers/${driver.id}/status`, { status: newStatus });
             showToast(t('Common.Success'), 'success');
             fetchDrivers();
         } catch (err) {
@@ -98,7 +98,6 @@ const Drivers = ({ userRole }) => {
         e.preventDefault();
         try {
             await api.put(`/Drivers/${editingDriver.id}`, { 
-                ...editingDriver, 
                 name: editName, 
                 phone: editPhone,
                 baseSalary: parseFloat(editBaseSalary) || 0
