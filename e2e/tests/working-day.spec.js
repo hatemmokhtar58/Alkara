@@ -104,10 +104,17 @@ test('a full working day', async ({ page, browser }) => {
     await modal.getByRole('button', { name: 'تاكيد الاغلاق' }).click();
     await expect(modal).toBeHidden();
     await expect(driverRow()).not.toContainText(CUSTOMER.name);
+
+    // today's summary: 200 revenue, 150 cash in the box, 50 owed by one customer
+    const cards = page.locator('.summary-card');
+    await expect(cards.filter({ hasText: 'إيراد النهارده' })).toContainText('200');
+    await expect(cards.filter({ hasText: 'في الصندوق' })).toContainText('150');
+    await expect(cards.filter({ hasText: 'ديون على العملاء' })).toContainText('50');
   });
 
   await test.step('the customer owes 50, then pays it at the office', async () => {
     await page.goto('/wallet');
+    await expect(page.locator('table')).toContainText(CUSTOMER.name); // customers who owe are listed first
     await pickOption(page.locator('.card').first(), CUSTOMER.name);
     const balance = page.locator('.card', { hasText: 'رصيد المحفظة الحالي' });
     await expect(balance).toContainText('50');
@@ -134,7 +141,7 @@ test('a full working day', async ({ page, browser }) => {
 
     await page.goto('/daily-report');
     // 150 cash trip + 50 collected - 40 fuel
-    await expect(page.locator('tbody tr').last()).toContainText('160.00');
+    await expect(page.locator('tbody tr').last()).toContainText('160');
   });
 
   await test.step('salary: 3000 + 10% of (200 - 40) = 3016, then paid and frozen', async () => {

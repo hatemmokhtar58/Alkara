@@ -28,7 +28,7 @@ export default function DailyReport({ period = 'daily' }) {
 
     const titles = { daily: 'حركة الصندوق - يومي', monthly: 'حركة الصندوق - شهري', yearly: 'حركة الصندوق - سنوي' };
     const netLabels = { daily: 'صافي اليوم', monthly: 'صافي الشهر', yearly: 'صافي السنة' };
-    const money = (v) => Number(v || 0).toFixed(2);
+    const money = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     const tbl = { width: '100%', borderCollapse: 'collapse', fontFamily: 'inherit', fontSize: '1rem' };
     const cell = { border: '1px solid var(--border-color)', padding: '10px 14px', textAlign: 'center' };

@@ -18,9 +18,11 @@ const Wallet = () => {
     const [depositNote, setDepositNote] = useState('');
     const [depositMethod, setDepositMethod] = useState('Cash');
 
-    useEffect(() => {
+    const fetchCustomers = useCallback(() => {
         api.get('/Customers').then(res => setCustomers(res.data)).catch(console.error);
     }, []);
+
+    useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
     const fetchWalletInfo = useCallback(() => {
         if (!selectedCustomer) {
@@ -48,6 +50,7 @@ const Wallet = () => {
             setDepositNote('');
             setDepositMethod('Cash');
             fetchWalletInfo();
+            fetchCustomers();
         } catch (err) {
             console.error(err);
         }
@@ -76,8 +79,44 @@ const Wallet = () => {
                 </div>
             </div>
 
+            {!selectedCustomer && (() => {
+                // Customers who owe first (biggest debt on top), then those with credit
+                const open = customers.filter(c => c.walletBalance !== 0)
+                    .sort((a, b) => b.walletBalance - a.walletBalance);
+                const money = (v) => Number(Math.abs(v)).toLocaleString('en-US', { maximumFractionDigits: 2 });
+                return (
+                    <div className="card">
+                        <h3 className="card-title">العملاء اللي ليهم أو عليهم فلوس</h3>
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>العميل</th>
+                                    <th>الجوال</th>
+                                    <th>الرصيد</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {open.map(c => (
+                                    <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedCustomer(c.id)}>
+                                        <td style={{ fontWeight: 700 }}>{c.name}</td>
+                                        <td dir="ltr" style={{ textAlign: 'right' }}>{c.phone}</td>
+                                        <td style={{ fontWeight: 700, color: c.walletBalance > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
+                                            {money(c.walletBalance)} {c.walletBalance > 0 ? 'عليه' : 'له (رصيد)'}
+                                        </td>
+                                        <td><button type="button" className="btn btn-primary" style={{ padding: '3px 12px', fontSize: '12px' }}>فتح المحفظة</button></td>
+                                    </tr>
+                                ))}
+                                {open.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gray-400)' }}>كل العملاء حساباتهم مقفولة، مفيش ديون ولا رصيد</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            })()}
+
             {selectedCustomer && (
                 <>
+                    <button type="button" className="btn no-print" style={{ marginBottom: '1rem' }} onClick={() => setSelectedCustomer('')}>→ رجوع لقائمة العملاء</button>
                     <div className="card" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-gradient)', color: 'white' }}>
                         <div>
                             <h3 style={{ marginBottom: '0.5rem', opacity: 0.9 }}>{t('Wallet.Balance')}</h3>

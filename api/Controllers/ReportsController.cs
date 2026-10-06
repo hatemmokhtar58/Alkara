@@ -16,11 +16,50 @@ namespace api.Controllers
 
         private readonly AppDbContext _context;
         private readonly DriverEarnings _earnings;
+        private readonly IClock _clock;
 
-        public ReportsController(AppDbContext context, DriverEarnings earnings)
+        public ReportsController(AppDbContext context, DriverEarnings earnings, IClock clock)
         {
             _context = context;
             _earnings = earnings;
+            _clock = clock;
+        }
+
+        // GET: api/Reports/today
+        // The dashboard summary: today's trips and revenue, today's cash box, and what customers owe now.
+        [HttpGet("today")]
+        public async Task<ActionResult> GetToday()
+        {
+            var start = _clock.Now.Date;
+            var end = start.AddDays(1);
+
+            var completed = await _context.Trips.AsNoTracking()
+                .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= start && t.EndTime < end)
+                .Select(t => new { t.FinalTotal, t.PaidAmount, t.PaymentMethod })
+                .ToListAsync();
+            var cashTrips = completed.Where(t => t.PaymentMethod == PaymentMethods.Cash).Sum(t => t.PaidAmount);
+
+            var collections = -await _context.WalletTransactions.AsNoTracking()
+                .Where(w => (w.Type == WalletTypes.CashCollection || w.Type == WalletTypes.CashDeposit) && w.TransactionDate >= start && w.TransactionDate < end)
+                .SumAsync(w => w.Amount);
+            var expenses = await _context.Expenses.AsNoTracking()
+                .Where(e => e.Date >= start && e.Date < end)
+                .SumAsync(e => e.Amount);
+
+            var balances = await _context.Customers.AsNoTracking()
+                .Select(c => c.WalletTransactions.Sum(w => w.Amount))
+                .ToListAsync();
+            var owing = balances.Where(b => b > 0).ToList();
+
+            return Ok(new
+            {
+                date = start,
+                tripsCount = completed.Count,
+                revenue = completed.Sum(t => t.FinalTotal),
+                cashNet = cashTrips + collections - expenses, // same as the daily cash box
+                debt = owing.Sum(),
+                customersOwing = owing.Count
+            });
         }
 
         public record StatementRow(string Kind, int Id, DateTime Time, decimal BaseFare, decimal FinalTotal, decimal Cash, decimal NonCash, decimal Fuel, decimal Debt, string? CustomerName, string? Category);

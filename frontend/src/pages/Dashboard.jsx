@@ -4,6 +4,16 @@ import api from '../api';
 import { normalizeSaudiMobile } from '../utils/phone';
 import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
+import { Link } from 'react-router-dom';
+
+// Money figures on the dashboard are for the owner and accountants (reports permission) only.
+const canSeeMoney = () => {
+    try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        return u.role === 'Admin' || (u.permissions || '').split(',').includes('reports');
+    } catch { return false; }
+};
+const money = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 const Dashboard = () => {
     const { t, i18n } = useTranslation();
@@ -17,6 +27,7 @@ const Dashboard = () => {
     const [customers, setCustomers] = useState([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [today, setToday] = useState(null); // summary cards
 
     // Close trip modal
     const [closeModalOpen, setCloseModalOpen] = useState(false);
@@ -70,6 +81,7 @@ const Dashboard = () => {
             setTrips(tripsRes.data);
             setCars(carsRes.data);
             setCustomers(customersRes.data);
+            if (canSeeMoney()) api.get('/Reports/today').then(res => setToday(res.data)).catch(() => setToday(null));
         } catch (err) {
             console.error("Error fetching dashboard data", err);
         } finally {
@@ -353,6 +365,32 @@ const Dashboard = () => {
             )}
             {!loading && <>
 
+            {/* Summary cards */}
+            <div className="summary-cards">
+                <div className="summary-card">
+                    <div className="summary-label">مشاوير شغالة دلوقتي</div>
+                    <div className="summary-value">{trips.filter(x => x.status === 'Ongoing').length}</div>
+                    <div className="summary-note">ومجدول {trips.filter(x => x.status === 'Scheduled').length}</div>
+                </div>
+                {today && <>
+                    <div className="summary-card">
+                        <div className="summary-label">إيراد النهارده</div>
+                        <div className="summary-value">{money(today.revenue)}</div>
+                        <div className="summary-note">{today.tripsCount} مشوار خلص</div>
+                    </div>
+                    <Link to="/daily-report" className="summary-card">
+                        <div className="summary-label">في الصندوق النهارده</div>
+                        <div className="summary-value" style={{ color: 'var(--success-color)' }}>{money(today.cashNet)}</div>
+                        <div className="summary-note">كاش بعد المصروفات</div>
+                    </Link>
+                    <Link to="/wallet" className="summary-card">
+                        <div className="summary-label">ديون على العملاء</div>
+                        <div className="summary-value" style={{ color: 'var(--danger-color)' }}>{money(today.debt)}</div>
+                        <div className="summary-note">على {today.customersOwing} عميل</div>
+                    </Link>
+                </>}
+            </div>
+
             {/* Drivers Table */}
             <div className="table-responsive" style={{ marginTop: '1rem' }}>
                 <table className="data-table drivers-live-table" style={{ tableLayout: 'fixed', width: '100%' }}>
@@ -421,6 +459,7 @@ const Dashboard = () => {
 
             {/* Action Buttons - Fixed at bottom */}
             <div className="dashboard-actions">
+                {!selectedDriverId && <div className="dashboard-actions-hint">اختار سائق من الجدول عشان الزراير تشتغل</div>}
                 <button className="action-btn action-new" onClick={() => {
                     if (selectedDriverId) handleOpenCreateModal(selectedDriverId);
                     else showToast(t('Dashboard.Msg.SelectDriver'), 'error');
