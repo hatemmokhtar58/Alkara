@@ -30,29 +30,29 @@ public class SalariesAndTimeTests
         var car = await admin.CreateCarAsync();
 
         await admin.RunFixedTripAsync(customer, driver, car, 1000);
-        await admin.RunFixedTripAsync(customer, driver, car, 500, paidAmount: 0); // unpaid still counts as income
+        await admin.RunFixedTripAsync(customer, driver, car, 500, paidAmount: 0); // unpaid: no commission until the customer pays
         await AddFuelAsync(admin, driver, car, 200);
 
         var update = await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=5&year=2026", new { allowances = 100, deductions = 50, notes = "سلفة" });
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
         var row = await SalaryRowAsync(admin, driver, 2026, 5);
-        Assert.Equal(1500, row.GetProperty("totalIncome").GetDecimal());
+        Assert.Equal(1000, row.GetProperty("totalIncome").GetDecimal());
         Assert.Equal(200, row.GetProperty("totalExpenses").GetDecimal());
         Assert.Equal(10, row.GetProperty("commissionPercent").GetDecimal());
-        Assert.Equal(130, row.GetProperty("commission").GetDecimal());
-        Assert.Equal(3180, row.GetProperty("totalSalary").GetDecimal());
+        Assert.Equal(80, row.GetProperty("commission").GetDecimal());
+        Assert.Equal(3130, row.GetProperty("totalSalary").GetDecimal());
         Assert.Equal(2, row.GetProperty("tripsCount").GetInt32());
 
         // The driver's own percentage wins over the default; the default can be changed.
         await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=5&year=2026", new { commissionPercent = 20, allowances = 100, deductions = 50, notes = "سلفة" });
-        Assert.Equal(260, (await SalaryRowAsync(admin, driver, 2026, 5)).GetProperty("commission").GetDecimal());
+        Assert.Equal(160, (await SalaryRowAsync(admin, driver, 2026, 5)).GetProperty("commission").GetDecimal());
 
         var other = await admin.CreateDriverAsync("آخر");
         await admin.RunFixedTripAsync(customer, other, car, 1000);
         Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync("/api/Salaries/settings", new { defaultCommissionPercent = 15 })).StatusCode);
         Assert.Equal(150, (await SalaryRowAsync(admin, other, 2026, 5)).GetProperty("commission").GetDecimal());
-        Assert.Equal(260, (await SalaryRowAsync(admin, driver, 2026, 5)).GetProperty("commission").GetDecimal());
+        Assert.Equal(160, (await SalaryRowAsync(admin, driver, 2026, 5)).GetProperty("commission").GetDecimal());
 
         // Edits survive a reload (they used to live only in the browser).
         row = await SalaryRowAsync(admin, driver, 2026, 5);
@@ -103,7 +103,7 @@ public class SalariesAndTimeTests
         factory.Clock.Now = new DateTime(2026, 7, 31, 23, 30, 0);
         await admin.RunFixedTripAsync(customer, driver, car, 300, paidAmount: 100);
 
-        Assert.Equal(300, (await SalaryRowAsync(admin, driver, 2026, 7)).GetProperty("totalIncome").GetDecimal());
+        Assert.Equal(100, (await SalaryRowAsync(admin, driver, 2026, 7)).GetProperty("totalIncome").GetDecimal());
         Assert.Equal(0, (await SalaryRowAsync(admin, driver, 2026, 8)).GetProperty("totalIncome").GetDecimal());
 
         var daily = await admin.GetFromJsonAsync<JsonElement>("/api/Wallet/daily?date=2026-07-31");

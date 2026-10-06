@@ -14,6 +14,7 @@ import Wallet from './pages/Wallet';
 import AccountStatement from './pages/AccountStatement';
 import Statements from './pages/Statements';
 import Salaries from './pages/Salaries';
+import DriverEarnings from './pages/DriverEarnings';
 import DailyReport from './pages/DailyReport';
 import Login from './pages/Login';
 import Users from './pages/Users';
@@ -43,6 +44,7 @@ const PAGES = [
   { path: '/statement-daily', perm: 'reports', text: 'كشف حساب يومي', menu: 'reports', element: () => <Statements period="daily" /> },
   { path: '/statement-monthly', perm: 'reports', text: 'كشف حساب شهري', menu: 'reports', element: () => <Statements period="monthly" /> },
   { path: '/statement-yearly', perm: 'reports', text: 'كشف حساب سنوي', menu: 'reports', element: () => <Statements period="yearly" /> },
+  { path: '/driver-earnings', perm: 'reports', text: 'إيراد السواقين', menu: 'reports', element: () => <DriverEarnings /> },
   { path: '/salaries', perm: 'reports', label: 'Sidebar.Salaries', menu: 'reports', element: () => <Salaries /> },
   { path: '/daily-report', perm: 'reports', text: 'التقرير اليومي', menu: 'reports', element: () => <DailyReport period="daily" /> },
   { path: '/monthly-report', perm: 'reports', text: 'التقرير الشهري', menu: 'reports', element: () => <DailyReport period="monthly" /> },
