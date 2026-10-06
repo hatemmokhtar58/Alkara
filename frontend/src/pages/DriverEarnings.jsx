@@ -3,15 +3,8 @@ import api from '../api';
 import { useTranslation } from 'react-i18next';
 import PeriodPicker from '../components/PeriodPicker';
 import { usePeriod, periodQuery } from '../components/period';
+import { SOURCE_LABELS } from '../components/paymentSources';
 
-const SOURCE_LABELS = {
-    TransferDeposit: 'تحويل',
-    CashDeposit: 'دفعة كاش',
-    CashCollection: 'تحصيل مع السائق',
-    TripPayment: 'مدفوع مع المشوار',
-    Adjustment: 'تسوية',
-    Reversal: 'إلغاء',
-};
 
 // Customer money received in the month, matched to the oldest unpaid trips first, per driver.
 // Commission is paid on this money only, in the month it was received. The server does the math.

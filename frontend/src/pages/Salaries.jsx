@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import { useToast } from '../context/ToastContext';
+import { SOURCE_LABELS } from '../components/paymentSources';
+
 
 const readUser = () => {
   try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
@@ -14,6 +16,8 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState({}); // driverId -> { baseSalary, commissionPercent, allowances, deductions }
   const [defaultPercent, setDefaultPercent] = useState('');
+  const [earnings, setEarnings] = useState({}); // driverId -> driver earnings row (money collected this month)
+  const [open, setOpen] = useState({});
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -23,7 +27,11 @@ export default function Salaries() {
     if (!month || !year) return;
     setLoading(true);
     try {
-      const res = await api.get(`/Salaries?month=${month}&year=${year}`);
+      const [res, earn] = await Promise.all([
+        api.get(`/Salaries?month=${month}&year=${year}`),
+        api.get(`/Reports/driver-earnings?period=monthly&year=${year}&month=${month}`).catch(() => null)
+      ]);
+      setEarnings(Object.fromEntries((earn?.data?.drivers || []).map(d => [d.driverId, d])));
       setData(res.data);
       setDefaultPercent(res.data.defaultCommissionPercent);
       const inputs = {};
@@ -106,6 +114,7 @@ export default function Salaries() {
   const sub = { background: 'var(--gray-800)', color: '#fff', fontWeight: 800 };
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
   const fmt = (n, digits = 0) => Number(n || 0).toFixed(digits);
+  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }) : '-';
 
   const drivers = data?.drivers || [];
   const totals = data?.totals;
@@ -160,7 +169,7 @@ export default function Salaries() {
           </div>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '8px' }}>
-          العمولة = النسبة × (إيراد المشاوير المنتهية − البنزين). خانة النسبة الفاضية معناها النسبة الافتراضية. التعديلات بتتحفظ أول ما تسيب الخانة.
+          العمولة = النسبة × (المحصّل من العملاء في الشهر − البنزين). المحصّل هو الفلوس اللي دخلت فعلاً على مشاوير السائق، وأي تحويل بيتوزع على أقدم المشاوير الأول. دوس على اسم السائق تشوف تفاصيله. خانة النسبة الفاضية معناها النسبة الافتراضية. التعديلات بتتحفظ أول ما تسيب الخانة.
         </div>
       </div>
 
@@ -174,7 +183,7 @@ export default function Salaries() {
                 <th style={c}>#</th>
                 <th style={c}>السائق</th>
                 <th style={c}>راتب</th>
-                <th style={c}>ايراد</th>
+                <th style={c}>المحصّل</th>
                 <th style={c}>بنزين</th>
                 <th style={c}>صافي</th>
                 <th style={c}>النسبة %</th>
@@ -186,10 +195,17 @@ export default function Salaries() {
               </tr>
             </thead>
             <tbody>
-              {drivers.map((d, i) => (
-                <tr key={d.driverId} style={d.isPaid ? { background: 'var(--success-bg)' } : undefined}>
+              {drivers.map((d, i) => {
+                const details = earnings[d.driverId]?.payments || [];
+                return (
+                <React.Fragment key={d.driverId}>
+                <tr style={d.isPaid ? { background: 'var(--success-bg)' } : undefined}>
                   <td style={c}>{i + 1}</td>
-                  <td style={cR}>{d.driverName}</td>
+                  <td style={{ ...cR, cursor: details.length ? 'pointer' : 'default' }}
+                    onClick={() => details.length && setOpen(o => ({ ...o, [d.driverId]: !o[d.driverId] }))}>
+                    {details.length > 0 && <span className="no-print">{open[d.driverId] ? '▾ ' : '◂ '}</span>}
+                    {d.driverName}
+                  </td>
                   {numberCell(d, 'baseSalary')}
                   <td style={c}>{fmt(d.totalIncome)}</td>
                   <td style={{ ...c, color: 'var(--danger-color)' }}>{fmt(d.totalExpenses)}</td>
@@ -210,7 +226,42 @@ export default function Salaries() {
                     )}
                   </td>
                 </tr>
-              ))}
+                {open[d.driverId] && (
+                  <tr>
+                    <td style={{ ...c, background: 'var(--gray-100)', padding: '6px 12px' }} colSpan="12">
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={cR}>العميل</th>
+                            <th style={c}>يوم المشوار</th>
+                            <th style={c}>المبلغ</th>
+                            <th style={c}>طريقة الدفع</th>
+                            <th style={c}>دخل يوم</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {details.map((p, k) => (
+                            <tr key={k}>
+                              <td style={cR}>{p.customerName || '-'}</td>
+                              <td style={c}>{fmtDate(p.tripDate)}</td>
+                              <td style={c}>{fmt(p.amount)}</td>
+                              <td style={c}>{SOURCE_LABELS[p.source] || p.source}</td>
+                              <td style={c}>{fmtDate(p.collectedAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {earnings[d.driverId]?.outstanding > 0 && (
+                        <div style={{ marginTop: '6px', color: 'var(--gray-500)' }}>
+                          متبقي على العملاء من مشاوير السائق: {fmt(earnings[d.driverId].outstanding)} (بيدخل في العمولة لما يتدفع)
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+                );
+              })}
               {drivers.length === 0 && (
                 <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="12">لا توجد بيانات</td></tr>
               )}
