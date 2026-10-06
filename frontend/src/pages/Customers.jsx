@@ -74,7 +74,6 @@ const Customers = () => {
         e.preventDefault();
         try {
             await api.put(`/Customers/${editingCustomer.id}`, { 
-                ...editingCustomer, 
                 name: editName, 
                 phone: editPhone 
             });

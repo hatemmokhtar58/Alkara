@@ -1,4 +1,7 @@
+using api.Auth;
+using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,21 +9,37 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Fleet)]
     public class CustomersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public CustomersController(AppDbContext context)
+        public CustomersController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
+        [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
+        public async Task<ActionResult> GetCustomers()
         {
-            return await _context.Customers.ToListAsync();
+            var customers = await _context.Customers
+                .OrderBy(c => c.Name)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.Phone,
+                    c.CreatedAt,
+                    WalletBalance = c.WalletTransactions.Sum(w => w.Amount)
+                })
+                .ToListAsync();
+            return Ok(customers);
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Reports, Permissions.Wallet)]
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<object>> GetCustomerStats(int id)
         {
@@ -47,23 +66,25 @@ namespace api.Controllers
             });
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Trips)]
         [HttpPost]
-        public async Task<ActionResult<Customer>> PostCustomer(Customer customer)
+        public async Task<ActionResult> PostCustomer(CustomerRequest request)
         {
+            var customer = new Customer { Name = request.Name.Trim(), Phone = request.Phone.Trim(), CreatedAt = _clock.Now };
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, customer);
+            return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, new { customer.Id, customer.Name, customer.Phone, customer.CreatedAt, WalletBalance = 0m });
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, Customer customer)
+        public async Task<IActionResult> PutCustomer(int id, CustomerRequest request)
         {
-            if (id != customer.Id)
-            {
-                return BadRequest();
-            }
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null) return NotFound();
 
-            _context.Entry(customer).State = EntityState.Modified;
+            // Only the contact details; the balance comes from wallet transactions.
+            customer.Name = request.Name.Trim();
+            customer.Phone = request.Phone.Trim();
             await _context.SaveChangesAsync();
 
             return NoContent();

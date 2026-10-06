@@ -24,8 +24,7 @@ const Users = () => {
         { key: 'fleet', icon: '🏢' },
         { key: 'expenses', icon: '💰' },
         { key: 'wallet', icon: '💳' },
-        { key: 'reports', icon: '📈' },
-        { key: 'users', icon: '🛡️' }
+        { key: 'reports', icon: '📈' }
     ];
 
     useEffect(() => {
@@ -50,7 +49,7 @@ const Users = () => {
             setRole(u.role || u.Role || 'Employee');
             const p = u.permissions || u.Permissions || '';
             setUserPerms(p ? p.split(',') : []);
-
+            setPassword('');
         } else {
             setEditingUser(null);
             setUsername('');
@@ -72,9 +71,8 @@ const Users = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const payload = {
-            id: editingUser ? editingUser.id : 0,
             username,
-            passwordHash: password, // Controller hashes it
+            password: password || null,
             role,
             permissions: userPerms.join(',')
         };
@@ -139,7 +137,7 @@ const Users = () => {
                                     </td>
                                     <td>
                                         <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
-                                            {u.permissions && u.permissions.split(',').map(p => (
+                                            {u.role === 'Admin' ? <span style={{fontSize: '12px'}}>كل الصلاحيات</span> : u.permissions && u.permissions.split(',').map(p => (
                                                 <span key={p} style={{fontSize: '10px', padding: '2px 6px', background: 'var(--gray-100)', borderRadius: '4px', border: '1px solid var(--gray-200)'}}>
                                                     {t(`Users.Keys.${p}`)}
                                                 </span>
@@ -169,12 +167,13 @@ const Users = () => {
                                 <input className="form-control" value={username} onChange={e => setUsername(e.target.value)} required />
                             </div>
                             
-                            {!editingUser && (
-                                <div className="form-group">
-                                    <label className="form-label">{t('Users.Password')}</label>
-                                    <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-                                </div>
-                            )}
+                            <div className="form-group">
+                                <label className="form-label">
+                                    {editingUser ? 'كلمة مرور جديدة (اتركها فارغة لعدم التغيير)' : t('Users.Password')}
+                                </label>
+                                <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} required={!editingUser} minLength={8} autoComplete="new-password" />
+                                <small style={{ color: 'var(--text-muted)' }}>8 أحرف على الأقل. المستخدم هيغيرها بنفسه أول ما يدخل.</small>
+                            </div>
 
                             <div className="form-group">
                                 <label className="form-label">{t('Users.Role')}</label>
@@ -188,6 +187,7 @@ const Users = () => {
                                 />
                             </div>
 
+                            {role !== 'Admin' && (
                             <div className="form-group">
                                 <label className="form-label" style={{display: 'block', marginBottom: '10px'}}>{t('Users.Permissions')}</label>
                                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
@@ -201,6 +201,7 @@ const Users = () => {
                                     ))}
                                 </div>
                             </div>
+                            )}
 
                             <div style={{display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'2rem'}}>
                                 <button type="button" className="btn" onClick={() => setModalOpen(false)}>{t('Common.Close')}</button>

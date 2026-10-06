@@ -59,52 +59,43 @@ const TripsLog = ({ userRole }) => {
     const confirmCompletion = async () => {
         if (!selectedTrip) return;
         
-        const updatedTrip = { 
-            ...selectedTrip, 
-            status: 'Completed',
-            endTime: new Date().toISOString(),
+        const pricingType = hasFinancePerm ? completionPricingType : (selectedTrip.pricingType || completionPricingType);
+        const completion = {
+            pricingType,
+            fixedPrice: pricingType === 'Fixed' ? parseFloat(hasFinancePerm ? completionFixedPrice : selectedTrip.fixedPrice) || 0 : null,
+            hourlyRate: pricingType === 'Hourly' ? parseFloat(hasFinancePerm ? completionHourlyRate : selectedTrip.hourlyRate) || 0 : null,
             paymentMethod: paymentMethodForCompletion,
-            pricingType: completionPricingType,
-            fixedPrice: completionPricingType === 'Fixed' ? parseFloat(completionFixedPrice || 0) : selectedTrip.fixedPrice,
-            hourlyRate: completionPricingType === 'Hourly' ? parseFloat(completionHourlyRate || 0) : selectedTrip.hourlyRate,
+            // Cash or transfer from this screen means paid in full; partial payments are closed from the dashboard.
+            paidAmount: null
         };
 
         try {
-            await api.put(`/Trips/${selectedTrip.id}`, updatedTrip);
+            const res = await api.post(`/Trips/${selectedTrip.id}/complete`, completion);
             setCompletionModalOpen(false);
+            showToast(`${t('Common.Success')} (${res.data.finalTotal} ${t('Dashboard.Currency')})`, 'success');
             fetchData();
-        } catch (err) {
-            console.error(err);
-            if (err.response?.data?.message) {
-                showToast(err.response.data.message, "error");
-            } else if (err.response?.data?.errors) {
-                // If standard .NET validation error
-                showToast(JSON.stringify(err.response.data.errors), "error");
-            } else {
-                showToast(t('Common.Error'), "error");
-            }
+        } catch {
+            // The API error message is shown by the global error handler.
         }
     };
 
     const confirmEdit = async () => {
         if (!selectedTrip) return;
 
-        const updatedTrip = {
-            ...selectedTrip,
-            scheduledFor: newScheduleDate ? new Date(newScheduleDate.getTime() - (newScheduleDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 19) : selectedTrip.scheduledFor,
-            driverId: newDriverId ? parseInt(newDriverId) : selectedTrip.driverId
+        const changes = {
+            scheduledFor: newScheduleDate ? new Date(newScheduleDate.getTime() - (newScheduleDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 19) : null,
+            driverId: newDriverId ? parseInt(newDriverId) : null
         };
 
         try {
-            await api.put(`/Trips/${selectedTrip.id}`, updatedTrip);
+            await api.put(`/Trips/${selectedTrip.id}`, changes);
             setEditModalOpen(false);
             setNewScheduleDate(null);
             setNewDriverId('');
             fetchData();
             showToast(t('TripsLog.EditSuccess') || "تم تعديل المشوار بنجاح", "success");
-        } catch (err) {
-            console.error(err);
-            showToast(t('Common.Error'), "error");
+        } catch {
+            // The API error message is shown by the global error handler.
         }
     };
 
@@ -127,19 +118,19 @@ const TripsLog = ({ userRole }) => {
             return;
         }
 
-        const updatedTrip = { ...trip, status: newStatus };
-        if (newStatus === 'Ongoing') updatedTrip.startTime = new Date().toISOString();
+        if (newStatus === 'Cancelled') {
+            const warning = trip.status === 'Completed'
+                ? 'إلغاء مشوار منتهي هيلغي قيمته وأي دفعة اتسجلت عليه من حساب العميل. متأكد؟'
+                : 'تأكيد إلغاء المشوار؟';
+            if (!window.confirm(warning)) return;
+        }
 
+        const action = newStatus === 'Ongoing' ? 'start' : 'cancel';
         try {
-            await api.put(`/Trips/${trip.id}`, updatedTrip);
+            await api.post(`/Trips/${trip.id}/${action}`);
             fetchData();
-        } catch (err) {
-            console.error(err);
-            if (err.response?.data?.message) {
-                showToast(err.response.data.message, "error");
-            } else {
-                showToast(t('Common.Error'), "error");
-            }
+        } catch {
+            // The API error message is shown by the global error handler.
         }
     };
 
@@ -293,12 +284,20 @@ const TripsLog = ({ userRole }) => {
                                         </div>
                                     )}
                                     {trip.status === 'Ongoing' && (
-                                        <button className="btn btn-success" style={{padding: '5px 10px', fontSize: '12px'}} onClick={() => updateTripStatus(trip, 'Completed')}>{t('TripsLog.Finish')}</button>
+                                        <div style={{display:'flex', gap:'5px'}}>
+                                            <button className="btn btn-success" style={{padding: '5px 10px', fontSize: '12px'}} onClick={() => updateTripStatus(trip, 'Completed')}>{t('TripsLog.Finish')}</button>
+                                            <button className="btn btn-danger" style={{padding: '5px 8px', fontSize: '11px'}} onClick={() => updateTripStatus(trip, 'Cancelled')}>{t('Common.Cancel')}</button>
+                                        </div>
                                     )}
                                     {trip.status === 'Completed' && (
-                                        <span style={{fontWeight:'bold', color:'var(--success-color)'}}>
-                                            {hasFinancePerm ? `${trip.finalTotal} ${t('Dashboard.Currency')}` : t('TripsLog.Calculated')}
-                                        </span>
+                                        <div style={{display:'flex', gap:'6px', alignItems:'center', flexWrap:'wrap'}}>
+                                            <span style={{fontWeight:'bold', color:'var(--success-color)'}}>
+                                                {hasFinancePerm ? `${trip.finalTotal} ${t('Dashboard.Currency')}` : t('TripsLog.Calculated')}
+                                            </span>
+                                            {role === 'Admin' && (
+                                                <button className="btn btn-danger" style={{padding: '3px 6px', fontSize: '10px'}} onClick={() => updateTripStatus(trip, 'Cancelled')}>{t('Common.Cancel')}</button>
+                                            )}
+                                        </div>
                                     )}
 
                                 </td>
@@ -385,6 +384,7 @@ const TripsLog = ({ userRole }) => {
                             <PremiumSelect 
                                 options={[
                                     {value: 'Cash', label: t('TripsLog.CashOption')},
+                                    {value: 'Transfer', label: 'تحويل'},
                                     {value: 'Wallet', label: t('TripsLog.WalletOption')}
                                 ]}
                                 value={paymentMethodForCompletion}

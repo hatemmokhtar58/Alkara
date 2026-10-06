@@ -19,6 +19,12 @@ namespace api.Models
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<User>(user =>
+            {
+                user.Property(u => u.Username).HasMaxLength(100);
+                user.HasIndex(u => u.Username).IsUnique();
+            });
             
             
             // Decimal precision for Trip
@@ -43,9 +49,22 @@ namespace api.Models
                 .Property(e => e.Amount)
                 .HasColumnType("decimal(18,2)");
                 
-            modelBuilder.Entity<Customer>()
-                .Property(c => c.WalletBalance)
+            modelBuilder.Entity<Trip>()
+                .Property(t => t.PaidAmount)
                 .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Trip>()
+                .Property(t => t.ExtraCharge)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<Driver>()
+                .Property(d => d.BaseSalary)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<WalletTransaction>()
+                .HasOne(w => w.Customer)
+                .WithMany(c => c.WalletTransactions)
+                .HasForeignKey(w => w.CustomerId);
                 
             modelBuilder.Entity<WalletTransaction>()
                 .Property(w => w.Amount)
