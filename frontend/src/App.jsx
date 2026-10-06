@@ -18,6 +18,7 @@ import DailyReport from './pages/DailyReport';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import SmsLog from './pages/SmsLog';
+import AuditLog from './pages/AuditLog';
 import ChangePassword from './pages/ChangePassword';
 
 import api from './api';
@@ -48,6 +49,7 @@ const PAGES = [
   { path: '/yearly-report', perm: 'reports', text: 'التقرير السنوي', menu: 'reports', element: () => <DailyReport period="yearly" /> },
   { path: '/users', perm: ADMIN, label: 'Sidebar.Users', menu: 'main', element: () => <Users /> },
   { path: '/sms-log', perm: ADMIN, text: 'سجل الرسائل', menu: 'reports', element: () => <SmsLog /> },
+  { path: '/audit-log', perm: ADMIN, text: 'سجل التعديلات', menu: 'reports', element: () => <AuditLog /> },
 ];
 
 const readStoredUser = () => {

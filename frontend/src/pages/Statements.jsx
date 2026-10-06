@@ -57,12 +57,12 @@ const Statements = ({ period = 'daily' }) => {
                         <tr style={hdr}>
                             <th style={c}>#</th>
                             <th style={c}>السائق</th>
-                            <th style={c}>الاجرة</th>
-                            <th style={c}>قيمة</th>
-                            <th style={c}>صندوق</th>
-                            <th style={c}>ايراد</th>
+                            <th style={c}>الأجرة الأساسية</th>
+                            <th style={c}>الإيراد (قيمة المشوار)</th>
+                            <th style={c}>مدفوع كاش</th>
+                            <th style={c}>مدفوع تحويل / رصيد</th>
                             <th style={c}>بنزين</th>
-                            <th style={c}>مديونية</th>
+                            <th style={c}>دين على العميل</th>
                             <th style={c}>الوقت</th>
                             <th style={c}>العميل</th>
                         </tr>
