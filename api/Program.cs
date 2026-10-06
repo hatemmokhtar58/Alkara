@@ -33,6 +33,7 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddSingleton<api.Services.IClock, api.Services.SaudiClock>();
 builder.Services.AddScoped<api.Services.WalletLedger>();
+builder.Services.AddScoped<api.Services.DriverEarnings>();
 
 // Register SMS Notification Service
 // Sms:Provider = "Mock" logs messages instead of sending them (local development).

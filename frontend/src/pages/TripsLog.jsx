@@ -11,7 +11,7 @@ const PAGE_SIZE = 50;
 const TripsLog = ({ userRole }) => {
     const { t, i18n } = useTranslation();
     const { showToast } = useToast();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
     const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(true);
     const [drivers, setDrivers] = useState([]); // Array to store drivers for editing
@@ -133,7 +133,7 @@ const TripsLog = ({ userRole }) => {
 
         if (newStatus === 'Cancelled') {
             const warning = trip.status === 'Completed'
-                ? 'إلغاء مشوار منتهي هيلغي قيمته وأي دفعة اتسجلت عليه من حساب العميل. متأكد؟'
+                ? 'إلغاء مشوار منتهٍ سيلغي قيمته وأي دفعة سُجّلت عليه في حساب العميل. هل أنت متأكد؟'
                 : 'تأكيد إلغاء المشوار؟';
             if (!window.confirm(warning)) return;
         }

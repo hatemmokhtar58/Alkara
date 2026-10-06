@@ -4,10 +4,17 @@ import api from '../api';
 import { normalizeSaudiMobile } from '../utils/phone';
 import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
+import { Link } from 'react-router-dom';
+
+// The summary cards on the dashboard are for admins only.
+const isAdmin = () => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}').role === 'Admin'; } catch { return false; }
+};
+const money = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 const Dashboard = () => {
     const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
     const { showToast } = useToast();
 
     const [selectedDriverId, setSelectedDriverId] = useState(null);
@@ -17,6 +24,7 @@ const Dashboard = () => {
     const [customers, setCustomers] = useState([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [today, setToday] = useState(null); // summary cards
 
     // Close trip modal
     const [closeModalOpen, setCloseModalOpen] = useState(false);
@@ -70,6 +78,7 @@ const Dashboard = () => {
             setTrips(tripsRes.data);
             setCars(carsRes.data);
             setCustomers(customersRes.data);
+            if (isAdmin()) api.get('/Reports/today').then(res => setToday(res.data)).catch(() => setToday(null));
         } catch (err) {
             console.error("Error fetching dashboard data", err);
         } finally {
@@ -353,6 +362,30 @@ const Dashboard = () => {
             )}
             {!loading && <>
 
+            {/* Summary cards */}
+            {today && <div className="summary-cards">
+                <div className="summary-card">
+                    <div className="summary-label">المشاوير الجارية الآن</div>
+                    <div className="summary-value">{trips.filter(x => x.status === 'Ongoing').length}</div>
+                    <div className="summary-note">والمجدولة: {trips.filter(x => x.status === 'Scheduled').length}</div>
+                </div>
+                <div className="summary-card">
+                        <div className="summary-label">إيراد اليوم</div>
+                        <div className="summary-value">{money(today.revenue)}</div>
+                        <div className="summary-note">المشاوير المكتملة: {today.tripsCount}</div>
+                    </div>
+                    <Link to="/daily-report" className="summary-card">
+                        <div className="summary-label">صافي الصندوق اليوم</div>
+                        <div className="summary-value" style={{ color: 'var(--success-color)' }}>{money(today.cashNet)}</div>
+                        <div className="summary-note">النقد بعد خصم المصروفات</div>
+                    </Link>
+                    <Link to="/wallet" className="summary-card">
+                        <div className="summary-label">مديونيات العملاء</div>
+                        <div className="summary-value" style={{ color: 'var(--danger-color)' }}>{money(today.debt)}</div>
+                        <div className="summary-note">عدد العملاء: {today.customersOwing}</div>
+                    </Link>
+            </div>}
+
             {/* Drivers Table */}
             <div className="table-responsive" style={{ marginTop: '1rem' }}>
                 <table className="data-table drivers-live-table" style={{ tableLayout: 'fixed', width: '100%' }}>
@@ -421,6 +454,7 @@ const Dashboard = () => {
 
             {/* Action Buttons - Fixed at bottom */}
             <div className="dashboard-actions">
+                {!selectedDriverId && <div className="dashboard-actions-hint">اختر سائقاً من الجدول لتفعيل الأزرار</div>}
                 <button className="action-btn action-new" onClick={() => {
                     if (selectedDriverId) handleOpenCreateModal(selectedDriverId);
                     else showToast(t('Dashboard.Msg.SelectDriver'), 'error');
@@ -468,7 +502,7 @@ const Dashboard = () => {
                                 <div><strong>{t('Dashboard.Col.Driver')}:</strong> {drv?.name}</div>
                                 <div><strong>{t('CreateTrip.Customer')}:</strong> {cust?.name}</div>
                                 <div><strong>{t('Dashboard.Col.Phone')}:</strong> <span dir="ltr">{cust?.phone || '--'}</span></div>
-                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--success-darker)', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}</span></div>
+                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--success-darker)', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}</span></div>
                                 <div><strong>{t('CreateTrip.Car')}:</strong> {car ? `${car.make} ${car.model}` : '--'}</div>
                                 <div><strong>{t('Dashboard.Col.Location')}:</strong> {closingTrip.pickupLocation || '--'}</div>
                             </div>
@@ -647,7 +681,7 @@ const Dashboard = () => {
                                 <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--danger-darker)' }}>💰 تحصيل مديونية</span>
                                 {(cust?.walletBalance || 0) > 0 && (
                                     <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--danger-light)', background: 'var(--danger-bg)', padding: '2px 8px', borderRadius: '6px' }}>
-                                        المديونية: {(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
+                                        المديونية: {(cust?.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}
                                     </span>
                                 )}
                             </div>
@@ -763,7 +797,7 @@ const Dashboard = () => {
                                         color: (foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--gray-500)',
                                         border: `1px solid ${(foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-border)' : 'var(--gray-200)'}`
                                     }}>
-                                        {(foundCustomer.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
+                                        {(foundCustomer.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}
                                     </div>
                                 </div>
                             )}

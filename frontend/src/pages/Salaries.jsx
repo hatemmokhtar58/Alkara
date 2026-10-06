@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import { useToast } from '../context/ToastContext';
+import { SOURCE_LABELS } from '../components/paymentSources';
+
 
 const readUser = () => {
   try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
@@ -14,6 +16,8 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState({}); // driverId -> { baseSalary, commissionPercent, allowances, deductions }
   const [defaultPercent, setDefaultPercent] = useState('');
+  const [earnings, setEarnings] = useState({}); // driverId -> driver earnings row (money collected this month)
+  const [open, setOpen] = useState({});
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -23,7 +27,11 @@ export default function Salaries() {
     if (!month || !year) return;
     setLoading(true);
     try {
-      const res = await api.get(`/Salaries?month=${month}&year=${year}`);
+      const [res, earn] = await Promise.all([
+        api.get(`/Salaries?month=${month}&year=${year}`),
+        api.get(`/Reports/driver-earnings?period=monthly&year=${year}&month=${month}`).catch(() => null)
+      ]);
+      setEarnings(Object.fromEntries((earn?.data?.drivers || []).map(d => [d.driverId, d])));
       setData(res.data);
       setDefaultPercent(res.data.defaultCommissionPercent);
       const inputs = {};
@@ -79,7 +87,7 @@ export default function Salaries() {
   };
 
   const pay = async (driverIds) => {
-    const message = driverIds ? 'تأكيد صرف راتب هذا السائق؟ بعد الصرف الأرقام بتتقفل.' : 'تأكيد صرف رواتب كل السائقين لهذا الشهر؟ بعد الصرف الأرقام بتتقفل.';
+    const message = driverIds ? 'تأكيد صرف راتب هذا السائق؟ بعد الصرف لا يمكن تعديل الأرقام.' : 'تأكيد صرف رواتب كل السائقين لهذا الشهر؟ بعد الصرف لا يمكن تعديل الأرقام.';
     if (!window.confirm(message)) return;
     try {
       const res = await api.post('/Salaries/pay', { year, month, driverIds });
@@ -105,7 +113,9 @@ export default function Salaries() {
   const hdr = { background: 'var(--gray-200)', fontWeight: 700 };
   const sub = { background: 'var(--gray-800)', color: '#fff', fontWeight: 800 };
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
-  const fmt = (n, digits = 0) => Number(n || 0).toFixed(digits);
+  // 3,016 or 12.5: thousands separated, no trailing .0
+  const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'short' }) : '-';
 
   const drivers = data?.drivers || [];
   const totals = data?.totals;
@@ -160,7 +170,7 @@ export default function Salaries() {
           </div>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '8px' }}>
-          العمولة = النسبة × (إيراد المشاوير المنتهية − البنزين). خانة النسبة الفاضية معناها النسبة الافتراضية. التعديلات بتتحفظ أول ما تسيب الخانة.
+          العمولة = النسبة × (المحصّل من العملاء خلال الشهر − البنزين). المحصّل هو المبالغ التي دُفعت فعلاً عن مشاوير السائق، ويُوزَّع أي تحويل على أقدم المشاوير أولاً. اضغط على اسم السائق لعرض التفاصيل. ترك خانة النسبة فارغة يعني استخدام النسبة الافتراضية. تُحفظ التعديلات تلقائياً عند مغادرة الخانة.
         </div>
       </div>
 
@@ -174,31 +184,38 @@ export default function Salaries() {
                 <th style={c}>#</th>
                 <th style={c}>السائق</th>
                 <th style={c}>راتب</th>
-                <th style={c}>ايراد</th>
+                <th style={c}>المحصّل</th>
                 <th style={c}>بنزين</th>
                 <th style={c}>صافي</th>
                 <th style={c}>النسبة %</th>
                 <th style={c}>عمولة</th>
                 <th style={c}>بدلات</th>
                 <th style={c}>خصم / سلف</th>
-                <th style={c}>الاجمالي</th>
+                <th style={c}>الإجمالي</th>
                 <th style={c} className="no-print">الحالة</th>
               </tr>
             </thead>
             <tbody>
-              {drivers.map((d, i) => (
-                <tr key={d.driverId} style={d.isPaid ? { background: 'var(--success-bg)' } : undefined}>
+              {drivers.map((d, i) => {
+                const details = earnings[d.driverId]?.payments || [];
+                return (
+                <React.Fragment key={d.driverId}>
+                <tr style={d.isPaid ? { background: 'var(--success-bg)' } : undefined}>
                   <td style={c}>{i + 1}</td>
-                  <td style={cR}>{d.driverName}</td>
+                  <td style={{ ...cR, cursor: details.length ? 'pointer' : 'default' }}
+                    onClick={() => details.length && setOpen(o => ({ ...o, [d.driverId]: !o[d.driverId] }))}>
+                    {details.length > 0 && <span className="no-print">{open[d.driverId] ? '▾ ' : '◂ '}</span>}
+                    {d.driverName}
+                  </td>
                   {numberCell(d, 'baseSalary')}
                   <td style={c}>{fmt(d.totalIncome)}</td>
                   <td style={{ ...c, color: 'var(--danger-color)' }}>{fmt(d.totalExpenses)}</td>
                   <td style={c}>{fmt(d.netIncome)}</td>
-                  {d.isPaid ? <td style={c}>{fmt(d.commissionPercent, 1)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
-                  <td style={c}>{fmt(d.commission, 1)}</td>
+                  {d.isPaid ? <td style={c}>{fmt(d.commissionPercent)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
+                  <td style={c}>{fmt(d.commission)}</td>
                   {numberCell(d, 'allowances', '0')}
                   {numberCell(d, 'deductions', '0')}
-                  <td style={{ ...c, fontWeight: 700 }}>{fmt(d.totalSalary, 1)}</td>
+                  <td style={{ ...c, fontWeight: 700 }}>{fmt(d.totalSalary)}</td>
                   <td style={c} className="no-print">
                     {d.isPaid ? (
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
@@ -210,7 +227,42 @@ export default function Salaries() {
                     )}
                   </td>
                 </tr>
-              ))}
+                {open[d.driverId] && (
+                  <tr>
+                    <td style={{ ...c, background: 'var(--gray-100)', padding: '6px 12px' }} colSpan="12">
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={cR}>العميل</th>
+                            <th style={c}>يوم المشوار</th>
+                            <th style={c}>المبلغ</th>
+                            <th style={c}>طريقة الدفع</th>
+                            <th style={c}>تاريخ التحصيل</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {details.map((p, k) => (
+                            <tr key={k}>
+                              <td style={cR}>{p.customerName || '-'}</td>
+                              <td style={c}>{fmtDate(p.tripDate)}</td>
+                              <td style={c}>{fmt(p.amount)}</td>
+                              <td style={c}>{SOURCE_LABELS[p.source] || p.source}</td>
+                              <td style={c}>{fmtDate(p.collectedAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {earnings[d.driverId]?.outstanding > 0 && (
+                        <div style={{ marginTop: '6px', color: 'var(--gray-500)' }}>
+                          متبقي على العملاء من مشاوير السائق: {fmt(earnings[d.driverId].outstanding)} (يُضاف إلى العمولة عند سداده)
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+                );
+              })}
               {drivers.length === 0 && (
                 <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="12">لا توجد بيانات</td></tr>
               )}
@@ -224,10 +276,10 @@ export default function Salaries() {
                   <td style={{ ...c, border: 'none', color: '#f87171' }}>{fmt(totals.totalExpenses)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalNetIncome)}</td>
                   <td style={{ ...c, border: 'none' }}></td>
-                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalCommission, 1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalCommission)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalAllowances)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalDeductions)}</td>
-                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalSalaries, 1)}</td>
+                  <td style={{ ...c, border: 'none' }}>{fmt(totals.totalSalaries)}</td>
                   <td style={{ ...c, border: 'none' }} className="no-print"></td>
                 </tr>
               </tfoot>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
 import PeriodPicker from '../components/PeriodPicker';
+import PageTabs from '../components/PageTabs';
 import { usePeriod, periodQuery } from '../components/period';
 
 // Cash box movement for the period: cash trips, collections and deposits in, expenses out. The server does the math.
@@ -27,7 +28,7 @@ export default function DailyReport({ period = 'daily' }) {
 
     const titles = { daily: 'حركة الصندوق - يومي', monthly: 'حركة الصندوق - شهري', yearly: 'حركة الصندوق - سنوي' };
     const netLabels = { daily: 'صافي اليوم', monthly: 'صافي الشهر', yearly: 'صافي السنة' };
-    const money = (v) => Number(v || 0).toFixed(2);
+    const money = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
     const tbl = { width: '100%', borderCollapse: 'collapse', fontFamily: 'inherit', fontSize: '1rem' };
     const cell = { border: '1px solid var(--border-color)', padding: '10px 14px', textAlign: 'center' };
@@ -38,6 +39,11 @@ export default function DailyReport({ period = 'daily' }) {
 
     return (
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
+            <PageTabs tabs={[
+                { path: '/daily-report', label: 'يومي' },
+                { path: '/monthly-report', label: 'شهري' },
+                { path: '/yearly-report', label: 'سنوي' },
+            ]} />
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ marginBottom: '0.5rem' }}>{titles[period]}</h2>
                 <PeriodPicker period={period} value={range}>
@@ -72,7 +78,7 @@ export default function DailyReport({ period = 'daily' }) {
                             </tr>
                         ))}
                         <tr style={totalRow}>
-                            <td style={cell} colSpan="3">اجمالي المشاوير</td>
+                            <td style={cell} colSpan="3">إجمالي المشاوير</td>
                             <td style={{ ...cell, fontWeight: 700 }}>{money(report.totalTrips)}</td>
                             <td style={cell}>-</td>
                         </tr>
@@ -81,14 +87,14 @@ export default function DailyReport({ period = 'daily' }) {
                         {report.collections.map((tx, i) => (
                             <tr key={`col-${tx.id}`}>
                                 <td style={cell}>{i + 1}</td>
-                                <td style={cellR}>{tx.type === 'CashCollection' ? 'تحصيل / كاش' : 'تحصيل / ادارة'}</td>
+                                <td style={cellR}>{tx.type === 'CashCollection' ? 'تحصيل / كاش' : 'تحصيل / إدارة'}</td>
                                 <td style={cellR}>{tx.customerName || '-'}</td>
                                 <td style={{ ...cell, fontWeight: 600 }}>{money(tx.amount)}</td>
                                 <td style={cell}>-</td>
                             </tr>
                         ))}
                         <tr style={totalRow}>
-                            <td style={cell} colSpan="3">اجمالي التحصيل</td>
+                            <td style={cell} colSpan="3">إجمالي التحصيل</td>
                             <td style={{ ...cell, fontWeight: 700 }}>{money(report.totalCollections)}</td>
                             <td style={cell}>-</td>
                         </tr>
@@ -104,7 +110,7 @@ export default function DailyReport({ period = 'daily' }) {
                             </tr>
                         ))}
                         <tr style={totalRow}>
-                            <td style={cell} colSpan="3">اجمالي المصروفات</td>
+                            <td style={cell} colSpan="3">إجمالي المصروفات</td>
                             <td style={cell}>-</td>
                             <td style={{ ...cell, fontWeight: 700, color: 'var(--danger-color)' }}>{money(report.totalExpenses)}</td>
                         </tr>

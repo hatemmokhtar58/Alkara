@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import { useTranslation } from 'react-i18next';
 import Pager from '../components/Pager';
+import PageTabs from '../components/PageTabs';
 
 const PAGE_SIZE = 50;
 const CATEGORY_LABELS = { Fuel: 'بنزين', Oil: 'زيت', Wash: 'غسيل', Maintenance: 'صيانة', Other: 'أخرى' };
 
 const ExpensesLog = () => {
     const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
     const [expenses, setExpenses] = useState([]);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
@@ -27,6 +28,10 @@ const ExpensesLog = () => {
 
     return (
         <div>
+            <PageTabs tabs={[
+                { path: '/expense-create', label: 'إضافة مصروف' },
+                { path: '/expenses-log', label: 'سجل المصروفات' },
+            ]} />
             <h1 className="page-title">{t('ExpensesLog.Title')}</h1>
             
             <div className="table-responsive">

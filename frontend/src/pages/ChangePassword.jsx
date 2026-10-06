@@ -40,7 +40,7 @@ const ChangePassword = ({ forced, onDone, onCancel, onLogout }) => {
                     <h1 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem', textAlign: 'center' }}>تغيير كلمة المرور</h1>
                     {forced && (
                         <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '1.5rem' }}>
-                            لازم تختار كلمة مرور جديدة خاصة بيك قبل ما تكمل.
+                            يجب اختيار كلمة مرور جديدة خاصة بك قبل المتابعة.
                         </p>
                     )}
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>

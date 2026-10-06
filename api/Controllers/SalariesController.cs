@@ -16,11 +16,13 @@ namespace api.Controllers
 
         private readonly AppDbContext _context;
         private readonly IClock _clock;
+        private readonly DriverEarnings _earnings;
 
-        public SalariesController(AppDbContext context, IClock clock)
+        public SalariesController(AppDbContext context, IClock clock, DriverEarnings earnings)
         {
             _context = context;
             _clock = clock;
+            _earnings = earnings;
         }
 
         public class SalaryUpdateRequest
@@ -189,11 +191,18 @@ namespace api.Controllers
                 .Where(s => s.Year == year && s.Month == month)
                 .ToDictionaryAsync(s => s.DriverId);
 
-            var income = await _context.Trips
+            // Commission is earned on money actually received from customers this month, wherever the trip fell.
+            var earnings = await _earnings.CalculateAsync();
+            var collected = earnings.Allocations
+                .Where(a => a.DriverId != null && a.CollectedAt >= startDate && a.CollectedAt < endDate)
+                .GroupBy(a => a.DriverId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
+
+            var tripCounts = await _context.Trips
                 .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= startDate && t.EndTime < endDate)
                 .GroupBy(t => t.DriverId)
-                .Select(g => new { DriverId = g.Key, Total = g.Sum(t => t.FinalTotal), Count = g.Count() })
-                .ToDictionaryAsync(x => x.DriverId);
+                .Select(g => new { DriverId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.DriverId, x => x.Count);
 
             // Fuel paid for the driver's work comes off the income the commission is based on.
             var fuel = await _context.Expenses
@@ -213,19 +222,18 @@ namespace api.Controllers
                         record.Allowances, record.Deductions, record.Total, record.TripsCount, record.Notes, true, record.PaidAt);
                 }
 
-                income.TryGetValue(driver.Id, out var driverIncome);
-                var totalIncome = driverIncome?.Total ?? 0;
+                var totalIncome = collected.GetValueOrDefault(driver.Id);
                 var totalExpenses = fuel.GetValueOrDefault(driver.Id);
                 var netIncome = totalIncome - totalExpenses;
                 var percent = driver.CommissionPercent ?? defaultPercent;
-                var commission = netIncome > 0 ? Math.Round(netIncome * percent / 100m, 2, MidpointRounding.AwayFromZero) : 0;
+                var commission = CommissionOn(netIncome, percent);
                 var allowances = record?.Allowances ?? 0;
                 var deductions = record?.Deductions ?? 0;
                 var total = driver.BaseSalary + commission + allowances - deductions;
 
                 return new SalaryRow(driver.Id, driver.Name, driver.BaseSalary, totalIncome, totalExpenses, netIncome,
                     percent, driver.CommissionPercent == null, commission, allowances, deductions, total,
-                    driverIncome?.Count ?? 0, record?.Notes, false, null);
+                    tripCounts.GetValueOrDefault(driver.Id), record?.Notes, false, null);
             }).ToList();
         }
 
@@ -240,9 +248,14 @@ namespace api.Controllers
             return record;
         }
 
-        private async Task<decimal> GetDefaultCommissionAsync()
+        public static decimal CommissionOn(decimal netIncome, decimal percent) =>
+            netIncome > 0 ? Math.Round(netIncome * percent / 100m, 2, MidpointRounding.AwayFromZero) : 0;
+
+        private Task<decimal> GetDefaultCommissionAsync() => GetDefaultCommissionAsync(_context);
+
+        public static async Task<decimal> GetDefaultCommissionAsync(AppDbContext context)
         {
-            var setting = await _context.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == DefaultCommissionKey);
+            var setting = await context.AppSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == DefaultCommissionKey);
             return setting != null && decimal.TryParse(setting.Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)
                 ? value
                 : FallbackCommissionPercent;

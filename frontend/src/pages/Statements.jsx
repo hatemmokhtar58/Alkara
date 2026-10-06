@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { useTranslation } from 'react-i18next';
 import PeriodPicker from '../components/PeriodPicker';
+import PageTabs from '../components/PageTabs';
 import { usePeriod, periodQuery } from '../components/period';
 
 const CATEGORY_LABELS = { Fuel: 'بنزين', Oil: 'زيت', Wash: 'غسيل', Maintenance: 'صيانة', Other: 'أخرى' };
@@ -10,7 +11,7 @@ const COLUMNS = ['baseFare', 'finalTotal', 'cash', 'nonCash', 'fuel', 'debt'];
 // Completed trips and expenses for the period, grouped by driver. The server does the math.
 const Statements = ({ period = 'daily' }) => {
     const { i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
 
     const range = usePeriod();
     const query = periodQuery(period, range);
@@ -29,9 +30,9 @@ const Statements = ({ period = 'daily' }) => {
     }, [query]);
 
     const fmtTime = (str) => str ? new Date(str).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '-';
-    const n = (v) => Number(v || 0).toFixed(0);
+    const n = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-    const titles = { daily: 'كشف حساب يومي', monthly: 'كشف حساب شهري', yearly: 'كشف حساب سنوي' };
+    const titles = { daily: 'كشف حساب السائقين - يومي', monthly: 'كشف حساب السائقين - شهري', yearly: 'كشف حساب السائقين - سنوي' };
     const groups = report?.drivers || [];
     const totals = report?.totals;
     const COLS = 10;
@@ -44,6 +45,11 @@ const Statements = ({ period = 'daily' }) => {
 
     return (
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem' }}>
+            <PageTabs tabs={[
+                { path: '/statement-daily', label: 'يومي' },
+                { path: '/statement-monthly', label: 'شهري' },
+                { path: '/statement-yearly', label: 'سنوي' },
+            ]} />
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ marginBottom: '0.5rem' }}>{titles[period]}</h2>
                 <PeriodPicker period={period} value={range}>
@@ -99,7 +105,7 @@ const Statements = ({ period = 'daily' }) => {
                                 ))}
                                 <tr style={sub}>
                                     <td style={c}></td>
-                                    <td style={{ ...cR, fontWeight: 800 }}>اجمالي سائق</td>
+                                    <td style={{ ...cR, fontWeight: 800 }}>إجمالي السائق</td>
                                     {COLUMNS.map(key => (
                                         <td key={key} style={{ ...c, fontWeight: 700, ...(key === 'fuel' ? { color: 'var(--danger-color)' } : {}) }}>{n(group.totals[key])}</td>
                                     ))}
