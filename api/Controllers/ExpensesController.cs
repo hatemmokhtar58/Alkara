@@ -1,4 +1,5 @@
 using api.Auth;
+using api.Dtos;
 using api.Models;
 using api.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -36,13 +37,30 @@ namespace api.Controllers
 
         // POST: api/Expenses
         [HttpPost]
-        public async Task<ActionResult<Expense>> PostExpense(Expense expense)
+        public async Task<ActionResult> PostExpense(ExpenseRequest request)
         {
-            expense.Date = _clock.Now;
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            if (request.DriverId is { } driverId && !await _context.Drivers.AnyAsync(d => d.Id == driverId))
+                return BadRequest(new { message = "السائق غير موجود." });
+            if (request.CarId is { } carId && !await _context.Cars.AnyAsync(c => c.Id == carId))
+                return BadRequest(new { message = "السيارة غير موجودة." });
+
+            var expense = new Expense
+            {
+                Category = request.Category,
+                Amount = request.Amount,
+                Note = request.Note?.Trim() ?? string.Empty,
+                DriverId = request.DriverId,
+                CarId = request.CarId,
+                Date = _clock.Now
+            };
             _context.Expenses.Add(expense);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetExpenses), new { id = expense.Id }, expense);
+            return CreatedAtAction(nameof(GetExpenses), new { id = expense.Id },
+                new { expense.Id, expense.Category, expense.Amount, expense.Note, expense.Date, expense.DriverId, expense.CarId });
         }
     }
 }

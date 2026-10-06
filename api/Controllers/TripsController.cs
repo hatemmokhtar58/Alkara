@@ -30,14 +30,14 @@ namespace api.Controllers
     public class TripsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly ISmsService _smsService;
+        private readonly SmsNotifier _sms;
         private readonly WalletLedger _wallet;
         private readonly IClock _clock;
 
-        public TripsController(AppDbContext context, ISmsService smsService, WalletLedger wallet, IClock clock)
+        public TripsController(AppDbContext context, SmsNotifier sms, WalletLedger wallet, IClock clock)
         {
             _context = context;
-            _smsService = smsService;
+            _sms = sms;
             _wallet = wallet;
             _clock = clock;
         }
@@ -332,18 +332,6 @@ namespace api.Controllers
             return NoContent();
         }
 
-        // GET: api/Trips/test-sms/05xxxxxxxx
-        [RequireAdmin]
-        [HttpGet("test-sms/{phoneNumber}")]
-        public async Task<IActionResult> TestSms(string phoneNumber)
-        {
-            string testMessage = "تجربة إرسال رسالة نصية من الكرى - Alkara Test SMS";
-            bool success = await _smsService.SendSmsAsync(phoneNumber, testMessage);
-
-            if (success) return Ok(new { message = "تم إرسال الرسالة بنجاح، يرجى التحقق من جوالك." });
-            else return BadRequest(new { message = "فشل إرسال الرسالة، يرجى التحقق من سجلات السيرفر (Logs)." });
-        }
-
         // POST: api/Trips/5/depart - إرسال إشعار خروج السائق من المكتب
         [HttpPost("{id}/depart")]
         public async Task<IActionResult> DepartTrip(int id, [FromQuery] bool skipSms = false)
@@ -370,9 +358,9 @@ namespace api.Controllers
             string plateNumber = car?.PlateNumber ?? "";
             string message = $"عميلنا العزيز تم توجه السيارة {plateNumber} السائق {driver?.Name} {driver?.Phone} الكرى";
 
-            bool success = await _smsService.SendSmsAsync(customer.Phone, message);
+            var result = await _sms.SendAsync(customer.Phone, message, "Departed", trip.Id);
 
-            if (success)
+            if (result.Success)
                 return Ok(new { message = "تم إرسال إشعار الخروج للعميل بنجاح.", trip.DepartedAt });
             else
                 return Ok(new { message = "تم تسجيل الخروج، لكن فشل إرسال الرسالة للعميل.", trip.DepartedAt });
@@ -495,7 +483,7 @@ namespace api.Controllers
 
                 if (!string.IsNullOrEmpty(message))
                 {
-                    await _smsService.SendSmsAsync(customer.Phone, message);
+                    await _sms.SendAsync(customer.Phone, message, eventType, trip.Id);
                 }
             }
             catch (Exception ex)

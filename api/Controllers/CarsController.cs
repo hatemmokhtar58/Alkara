@@ -80,7 +80,14 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<Car>> PostCar(CarRequest request)
         {
-            var car = new Car { PlateNumber = request.PlateNumber.Trim(), Make = request.Make.Trim(), Model = request.Model.Trim(), Color = request.Color.Trim(), Year = request.Year, Status = "Available" };
+            var error = request.Validate(_clock.Now.Year);
+            if (error != null) return BadRequest(new { message = error });
+
+            var plate = PhoneNumbers.NormalizePlate(request.PlateNumber);
+            if (await _context.Cars.AnyAsync(c => c.PlateNumber == plate))
+                return Conflict(new { message = $"يوجد سيارة مسجلة بنفس رقم اللوحة {plate}." });
+
+            var car = new Car { PlateNumber = plate, Make = (request.Make ?? "").Trim(), Model = (request.Model ?? "").Trim(), Color = (request.Color ?? "").Trim(), Year = request.Year, Status = "Available" };
             _context.Cars.Add(car);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetCars), new { id = car.Id }, car);
@@ -92,10 +99,17 @@ namespace api.Controllers
             var car = await _context.Cars.FindAsync(id);
             if (car == null) return NotFound();
 
-            car.PlateNumber = request.PlateNumber.Trim();
-            car.Make = request.Make.Trim();
-            car.Model = request.Model.Trim();
-            car.Color = request.Color.Trim();
+            var error = request.Validate(_clock.Now.Year);
+            if (error != null) return BadRequest(new { message = error });
+
+            var plate = PhoneNumbers.NormalizePlate(request.PlateNumber);
+            if (await _context.Cars.AnyAsync(c => c.PlateNumber == plate && c.Id != id))
+                return Conflict(new { message = $"يوجد سيارة مسجلة بنفس رقم اللوحة {plate}." });
+
+            car.PlateNumber = plate;
+            car.Make = (request.Make ?? "").Trim();
+            car.Model = (request.Model ?? "").Trim();
+            car.Color = (request.Color ?? "").Trim();
             car.Year = request.Year;
             await _context.SaveChangesAsync();
 

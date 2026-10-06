@@ -15,7 +15,7 @@ public static class Api
 
     public static async Task<int> CreateDriverAsync(this HttpClient client, string name = "سائق", decimal baseSalary = 0)
     {
-        var response = await client.PostAsJsonAsync("/api/Drivers", new { name, phone = "0550000000", baseSalary });
+        var response = await client.PostAsJsonAsync("/api/Drivers", new { name, phone = "055" + Random.Shared.Next(1000000, 9999999), baseSalary });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
     }
