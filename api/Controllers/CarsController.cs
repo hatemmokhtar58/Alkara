@@ -1,6 +1,7 @@
 using api.Auth;
 using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace api.Controllers
     public class CarsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public CarsController(AppDbContext context)
+        public CarsController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
@@ -32,7 +35,7 @@ namespace api.Controllers
             var carExists = await _context.Cars.AnyAsync(c => c.Id == id);
             if (!carExists) return NotFound("السيارة غير موجودة");
 
-            var today = DateTime.Today;
+            var today = _clock.Now.Date;
 
             // Trips
             var carTrips = await _context.Trips
@@ -77,7 +80,14 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<Car>> PostCar(CarRequest request)
         {
-            var car = new Car { PlateNumber = request.PlateNumber.Trim(), Make = request.Make.Trim(), Model = request.Model.Trim(), Color = request.Color.Trim(), Year = request.Year, Status = "Available" };
+            var error = request.Validate(_clock.Now.Year);
+            if (error != null) return BadRequest(new { message = error });
+
+            var plate = PhoneNumbers.NormalizePlate(request.PlateNumber);
+            if (await _context.Cars.AnyAsync(c => c.PlateNumber == plate))
+                return Conflict(new { message = $"يوجد سيارة مسجلة بنفس رقم اللوحة {plate}." });
+
+            var car = new Car { PlateNumber = plate, Make = (request.Make ?? "").Trim(), Model = (request.Model ?? "").Trim(), Color = (request.Color ?? "").Trim(), Year = request.Year, Status = "Available" };
             _context.Cars.Add(car);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetCars), new { id = car.Id }, car);
@@ -89,10 +99,17 @@ namespace api.Controllers
             var car = await _context.Cars.FindAsync(id);
             if (car == null) return NotFound();
 
-            car.PlateNumber = request.PlateNumber.Trim();
-            car.Make = request.Make.Trim();
-            car.Model = request.Model.Trim();
-            car.Color = request.Color.Trim();
+            var error = request.Validate(_clock.Now.Year);
+            if (error != null) return BadRequest(new { message = error });
+
+            var plate = PhoneNumbers.NormalizePlate(request.PlateNumber);
+            if (await _context.Cars.AnyAsync(c => c.PlateNumber == plate && c.Id != id))
+                return Conflict(new { message = $"يوجد سيارة مسجلة بنفس رقم اللوحة {plate}." });
+
+            car.PlateNumber = plate;
+            car.Make = (request.Make ?? "").Trim();
+            car.Model = (request.Model ?? "").Trim();
+            car.Color = (request.Color ?? "").Trim();
             car.Year = request.Year;
             await _context.SaveChangesAsync();
 

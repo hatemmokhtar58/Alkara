@@ -1,6 +1,7 @@
 using api.Auth;
 using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace api.Controllers
     public class DriversController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public DriversController(AppDbContext context)
+        public DriversController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
         // GET: api/Drivers
@@ -38,7 +41,7 @@ namespace api.Controllers
                 .Where(t => t.DriverId == id && t.Status == "Completed" && t.EndTime != null)
                 .ToListAsync();
 
-            var today = DateTime.Today;
+            var today = _clock.Now.Date;
             
             var todayInc = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
             
@@ -62,7 +65,10 @@ namespace api.Controllers
         [HttpPost]
         public async Task<ActionResult<Driver>> PostDriver(DriverRequest request)
         {
-            var driver = new Driver { Name = request.Name.Trim(), Phone = request.Phone.Trim(), BaseSalary = request.BaseSalary, Status = "Available" };
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var driver = new Driver { Name = request.Name.Trim(), Phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!, BaseSalary = request.BaseSalary, Status = "Available" };
             _context.Drivers.Add(driver);
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetDrivers), new { id = driver.Id }, driver);
@@ -74,8 +80,11 @@ namespace api.Controllers
             var driver = await _context.Drivers.FindAsync(id);
             if (driver == null) return NotFound();
 
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
             driver.Name = request.Name.Trim();
-            driver.Phone = request.Phone.Trim();
+            driver.Phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
             driver.BaseSalary = request.BaseSalary;
             await _context.SaveChangesAsync();
 

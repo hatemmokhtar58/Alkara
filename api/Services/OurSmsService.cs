@@ -22,7 +22,7 @@ namespace api.Services
             _configuration = configuration;
         }
 
-        public async Task<bool> SendSmsAsync(string phoneNumber, string message)
+        public async Task<SmsSendResult> SendSmsAsync(string phoneNumber, string message)
         {
             try
             {
@@ -34,7 +34,7 @@ namespace api.Services
                 if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(token))
                 {
                     _logger.LogError("[OurSMS] SMS configuration is missing. Make sure 'OurSms:ApiUrl' and 'OurSms:Token' are configured (the token comes from the OurSms__Token environment variable, see api/SECRETS.md).");
-                    return false;
+                    return SmsSendResult.Fail("خدمة الرسائل غير مُعدة على السيرفر (OurSms).");
                 }
 
                 // Format phone number - ensure it starts with 966 country code
@@ -57,31 +57,32 @@ namespace api.Services
                 };
 
                 var jsonContent = JsonSerializer.Serialize(payload);
-                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                // Set Bearer token in Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                using var request = new HttpRequestMessage(HttpMethod.Post, apiUrl)
+                {
+                    Content = new StringContent(jsonContent, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 _logger.LogInformation($"[OurSMS] Sending SMS to {cleanPhone} ...");
 
-                var response = await _httpClient.PostAsync(apiUrl, httpContent);
+                using var response = await _httpClient.SendAsync(request);
                 var responseBody = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation($"[OurSMS] ✅ Success. Response: {responseBody}");
-                    return true;
+                    return SmsSendResult.Ok();
                 }
                 else
                 {
                     _logger.LogError($"[OurSMS] ❌ Failed. Status: {response.StatusCode}. Response: {responseBody}");
-                    return false;
+                    return SmsSendResult.Fail($"{(int)response.StatusCode}: {responseBody}");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[OurSMS] Exception while sending SMS");
-                return false;
+                return SmsSendResult.Fail(ex.Message);
             }
         }
     }

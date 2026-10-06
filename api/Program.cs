@@ -15,7 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers().AddJsonOptions(x =>
-    x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles); // Prevent cyclic JSON Reference
+{
+    x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // Prevent cyclic JSON Reference
+    x.JsonSerializerOptions.Converters.Add(new api.Services.SaudiDateTimeConverter());
+});
 
 // Every endpoint requires a logged-in user unless it opts out with [AllowAnonymous]
 builder.Services.AddAuthorization(options =>
@@ -32,7 +35,13 @@ builder.Services.AddSingleton<api.Services.IClock, api.Services.SaudiClock>();
 builder.Services.AddScoped<api.Services.WalletLedger>();
 
 // Register SMS Notification Service
-builder.Services.AddScoped<api.Services.ISmsService, api.Services.OurSmsService>();
+// Sms:Provider = "Mock" logs messages instead of sending them (local development).
+if (string.Equals(builder.Configuration["Sms:Provider"], "Mock", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<api.Services.ISmsService, api.Services.MockSmsService>();
+else
+    builder.Services.AddScoped<api.Services.ISmsService, api.Services.OurSmsService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<api.Services.SmsNotifier>();
 
 // Configure MySQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

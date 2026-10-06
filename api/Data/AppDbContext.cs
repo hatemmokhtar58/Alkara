@@ -15,6 +15,9 @@ namespace api.Models
         public DbSet<Expense> Expenses { get; set; } = null!;
         public DbSet<WalletTransaction> WalletTransactions { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<AppSetting> AppSettings { get; set; } = null!;
+        public DbSet<DriverMonthlySalary> DriverMonthlySalaries { get; set; } = null!;
+        public DbSet<SmsLog> SmsLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,6 +63,48 @@ namespace api.Models
             modelBuilder.Entity<Driver>()
                 .Property(d => d.BaseSalary)
                 .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<AppSetting>(setting =>
+            {
+                setting.HasKey(s => s.Key);
+                setting.Property(s => s.Key).HasMaxLength(100);
+            });
+
+            // Phone numbers are stored as 05XXXXXXXX and plates normalized, so these catch duplicates.
+            modelBuilder.Entity<Customer>(customer =>
+            {
+                customer.Property(c => c.Phone).HasMaxLength(20);
+                customer.HasIndex(c => c.Phone).IsUnique();
+            });
+
+            modelBuilder.Entity<Car>(car =>
+            {
+                car.Property(c => c.PlateNumber).HasMaxLength(20);
+                car.HasIndex(c => c.PlateNumber).IsUnique();
+            });
+
+            modelBuilder.Entity<Driver>().Property(d => d.Phone).HasMaxLength(20);
+
+            modelBuilder.Entity<SmsLog>(log =>
+            {
+                log.Property(l => l.Phone).HasMaxLength(20);
+                log.Property(l => l.Event).HasMaxLength(30);
+                log.Property(l => l.Error).HasMaxLength(500);
+                log.HasIndex(l => l.SentAt);
+            });
+
+            modelBuilder.Entity<DriverMonthlySalary>(salary =>
+            {
+                salary.HasIndex(s => new { s.DriverId, s.Year, s.Month }).IsUnique();
+                foreach (var property in new[] { "Allowances", "Deductions", "BaseSalary", "TotalIncome", "TotalExpenses", "CommissionPercent", "Commission", "Total" })
+                {
+                    salary.Property(property).HasColumnType("decimal(18,2)");
+                }
+            });
+
+            modelBuilder.Entity<Driver>()
+                .Property(d => d.CommissionPercent)
+                .HasColumnType("decimal(5,2)");
 
             modelBuilder.Entity<WalletTransaction>()
                 .HasOne(w => w.Customer)
