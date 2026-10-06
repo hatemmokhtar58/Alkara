@@ -44,12 +44,20 @@ namespace api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+            var username = (request.Username ?? string.Empty).Trim();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
+                _context.AddAuditEvent("LoginFailed", nameof(User), user?.Id.ToString(), new { ip = HttpContext.Connection.RemoteIpAddress?.ToString() },
+                    userId: user?.Id, username: username.Length > 100 ? username[..100] : username);
+                await _context.SaveChangesAsync();
                 return Unauthorized(new { message = "اسم المستخدم أو كلمة المرور غير صحيحة" });
             }
+
+            _context.AddAuditEvent("Login", nameof(User), user.Id.ToString(), new { ip = HttpContext.Connection.RemoteIpAddress?.ToString() },
+                userId: user.Id, username: user.Username);
+            await _context.SaveChangesAsync();
 
             var token = GenerateJwtToken(user);
             

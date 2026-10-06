@@ -42,13 +42,52 @@ namespace api.Controllers
             _clock = clock;
         }
 
-        // GET: api/Trips
+        // GET: api/Trips?status=Scheduled,Ongoing - without a status every trip is returned
         [RequirePermission(Permissions.Trips, Permissions.Reports, Permissions.Fleet)]
         [HttpGet]
-        public async Task<ActionResult> GetTrips()
+        public async Task<ActionResult> GetTrips([FromQuery] string? status)
         {
-            var trips = await _context.Trips
-                .OrderByDescending(t => t.Id)
+            var query = _context.Trips.AsQueryable();
+            var statuses = ParseStatuses(status);
+            if (statuses.Length > 0) query = query.Where(t => statuses.Contains(t.Status));
+
+            return Ok(await Project(query.OrderByDescending(t => t.Id)).ToListAsync());
+        }
+
+        // GET: api/Trips/log?page=1&pageSize=50&search=&status= - one page of the trips log, newest first
+        [RequirePermission(Permissions.Trips, Permissions.Reports, Permissions.Fleet)]
+        [HttpGet("log")]
+        public async Task<ActionResult> GetTripsLog([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null, [FromQuery] string? status = null)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+
+            var query = _context.Trips.AsQueryable();
+            var statuses = ParseStatuses(status);
+            if (statuses.Length > 0) query = query.Where(t => statuses.Contains(t.Status));
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(t =>
+                    (t.Customer != null && (t.Customer.Name.Contains(term) || t.Customer.Phone.Contains(term))) ||
+                    (t.Driver != null && t.Driver.Name.Contains(term)) ||
+                    (t.Car != null && t.Car.PlateNumber.Contains(term)) ||
+                    (t.PickupLocation != null && t.PickupLocation.Contains(term)) ||
+                    (t.DropoffLocation != null && t.DropoffLocation.Contains(term)));
+            }
+
+            var total = await query.CountAsync();
+            var items = await Project(query.OrderByDescending(t => t.Id).Skip((page - 1) * pageSize).Take(pageSize)).ToListAsync();
+            return Ok(new { total, page, pageSize, items });
+        }
+
+        private static string[] ParseStatuses(string? status) =>
+            (status ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        private IQueryable<object> Project(IQueryable<Trip> query)
+        {
+            var users = _context.Users.IgnoreQueryFilters();
+            return query
                 .Select(t => new {
                     t.Id,
                     t.CustomerId,
@@ -74,11 +113,9 @@ namespace api.Controllers
                     t.PaidAmount,
                     t.Status,
                     t.PaymentMethod,
-                    t.Notes
-                })
-                .ToListAsync();
-
-            return Ok(trips);
+                    t.Notes,
+                    createdBy = users.Where(u => u.Id == t.CreatedByUserId).Select(u => u.Username).FirstOrDefault()
+                });
         }
 
         // POST: api/Trips - a new trip is always scheduled; it moves on through start/complete/cancel

@@ -40,7 +40,8 @@ namespace api.Controllers
                     w.Type,
                     w.Description,
                     w.TransactionDate,
-                    w.TripId
+                    w.TripId,
+                    createdBy = _context.Users.IgnoreQueryFilters().Where(u => u.Id == w.CreatedByUserId).Select(u => u.Username).FirstOrDefault()
                 })
                 .ToListAsync();
 
@@ -86,6 +87,9 @@ namespace api.Controllers
         {
             if (request.Amount <= 0)
                 return BadRequest(new { message = "المبلغ يجب أن يكون أكبر من صفر." });
+            if (request.Method != PaymentMethods.Cash && request.Method != PaymentMethods.Transfer)
+                return BadRequest(new { message = "طريقة الدفع غير صالحة." });
+            var isTransfer = request.Method == PaymentMethods.Transfer;
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -93,8 +97,8 @@ namespace api.Controllers
             if (customer == null) return NotFound(new { message = "العميل غير موجود" });
 
             await _wallet.LockCustomerAsync(customer.Id);
-            _wallet.Add(customer.Id, -request.Amount, WalletTypes.CashDeposit,
-                string.IsNullOrWhiteSpace(request.Note) ? "إيداع نقدي للمحفظة" : request.Note.Trim());
+            _wallet.Add(customer.Id, -request.Amount, isTransfer ? WalletTypes.TransferDeposit : WalletTypes.CashDeposit,
+                string.IsNullOrWhiteSpace(request.Note) ? (isTransfer ? "تحويل للإدارة" : "إيداع نقدي للمحفظة") : request.Note.Trim());
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -108,5 +112,7 @@ namespace api.Controllers
         public int CustomerId { get; set; }
         public decimal Amount { get; set; }
         public string Note { get; set; } = string.Empty;
+        // Cash counts in the cash box; Transfer only settles the customer's balance
+        public string Method { get; set; } = PaymentMethods.Cash;
     }
 }

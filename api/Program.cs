@@ -42,6 +42,7 @@ else
     builder.Services.AddScoped<api.Services.ISmsService, api.Services.OurSmsService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<api.Services.SmsNotifier>();
+builder.Services.AddScoped<api.Services.IAuditContext, api.Services.HttpAuditContext>();
 
 // Configure MySQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

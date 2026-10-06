@@ -1,0 +1,8 @@
+[Unit]
+Description=Alkara daily database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/alkara/deploy/backup.sh

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import PremiumSelect from '../components/PremiumSelect';
 import { useTranslation } from 'react-i18next';
@@ -16,24 +16,23 @@ const Wallet = () => {
     // Deposit Form
     const [depositAmount, setDepositAmount] = useState('');
     const [depositNote, setDepositNote] = useState('');
+    const [depositMethod, setDepositMethod] = useState('Cash');
 
     useEffect(() => {
         api.get('/Customers').then(res => setCustomers(res.data)).catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (selectedCustomer) {
-            fetchWalletInfo();
-        } else {
+    const fetchWalletInfo = useCallback(() => {
+        if (!selectedCustomer) {
             setWalletData({ balance: 0, transactions: [] });
+            return;
         }
-    }, [selectedCustomer]);
-
-    const fetchWalletInfo = () => {
         api.get(`/Wallet/${selectedCustomer}`)
             .then(res => setWalletData(res.data))
-            .catch(console.error);
-    };
+            .catch(() => {});
+    }, [selectedCustomer]);
+
+    useEffect(() => { fetchWalletInfo(); }, [fetchWalletInfo]);
 
     const handleDeposit = async (e) => {
         e.preventDefault();
@@ -41,11 +40,13 @@ const Wallet = () => {
             await api.post('/Wallet/Deposit', {
                 customerId: parseInt(selectedCustomer),
                 amount: parseFloat(depositAmount),
+                method: depositMethod,
                 note: depositNote
             });
             showToast(t('Common.Success'), 'success');
             setDepositAmount('');
             setDepositNote('');
+            setDepositMethod('Cash');
             fetchWalletInfo();
         } catch (err) {
             console.error(err);
@@ -96,23 +97,23 @@ const Wallet = () => {
                                 <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>{t('Wallet.NoteLabel')}</label>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteCashDriver'))}
+                                        <button type="button" onClick={() => { setDepositMethod('Cash'); setDepositNote(t('Wallet.NoteCashDriver')); }}
                                             style={{
                                                 flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
                                                 fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-100)',
-                                                color: depositNote === t('Wallet.NoteCashDriver') ? 'white' : 'var(--gray-700)',
-                                                border: `2px solid ${depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                                background: depositMethod === 'Cash' ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositMethod === 'Cash' ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositMethod === 'Cash' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                             }}>
                                             💰 {t('Wallet.NoteCashDriver')}
                                         </button>
-                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteTransferAdmin'))}
+                                        <button type="button" onClick={() => { setDepositMethod('Transfer'); setDepositNote(t('Wallet.NoteTransferAdmin')); }}
                                             style={{
                                                 flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
                                                 fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-100)',
-                                                color: depositNote === t('Wallet.NoteTransferAdmin') ? 'white' : 'var(--gray-700)',
-                                                border: `2px solid ${depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                                background: depositMethod === 'Transfer' ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositMethod === 'Transfer' ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositMethod === 'Transfer' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                             }}>
                                             🏦 {t('Wallet.NoteTransferAdmin')}
                                         </button>
@@ -133,6 +134,7 @@ const Wallet = () => {
                                 <th>{t('Wallet.Amount')}</th>
                                 <th>{t('Wallet.Details')}</th>
                                 <th>{t('Wallet.TripId')}</th>
+                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -152,10 +154,11 @@ const Wallet = () => {
                                         </td>
                                         <td>{tData.description}</td>
                                         <td>{tData.tripId ? `#${tData.tripId}` : '-'}</td>
+                                        <td style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>{tData.createdBy || '-'}</td>
                                     </tr>
                                 );
                             })}
-                            {walletData.transactions.length === 0 && <tr><td colSpan="6" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
+                            {walletData.transactions.length === 0 && <tr><td colSpan="7" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
                         </tbody>
                     </table>
                 </>

@@ -35,29 +35,21 @@ namespace api.Controllers
             var carExists = await _context.Cars.AnyAsync(c => c.Id == id);
             if (!carExists) return NotFound("السيارة غير موجودة");
 
-            var today = _clock.Now.Date;
+            var since = StatsRanges.From(_clock.Now);
 
-            // Trips
-            var carTrips = await _context.Trips
-                .Where(t => t.CarId == id && t.Status == "Completed" && t.EndTime != null)
-                .ToListAsync();
+            var carTrips = _context.Trips.Where(t => t.CarId == id && t.Status == TripStatuses.Completed && t.EndTime != null);
+            var todayTrips = await carTrips.CountAsync(t => t.EndTime >= since.Today);
+            var weekTrips = await carTrips.CountAsync(t => t.EndTime >= since.Week);
+            var monthTrips = await carTrips.CountAsync(t => t.EndTime >= since.Month);
+            var yearTrips = await carTrips.CountAsync(t => t.EndTime >= since.Year);
+            var totalTrips = await carTrips.CountAsync();
 
-            var todayTrips = carTrips.Count(t => t.EndTime.Value.Date == today);
-            var weekTrips = carTrips.Count(t => t.EndTime.Value.Date >= today.AddDays(-7));
-            var monthTrips = carTrips.Count(t => t.EndTime.Value.Year == today.Year && t.EndTime.Value.Month == today.Month);
-            var yearTrips = carTrips.Count(t => t.EndTime.Value.Year == today.Year);
-            var totalTrips = carTrips.Count;
-
-            // Expenses
-            var carExp = await _context.Expenses
-                .Where(e => e.CarId == id)
-                .ToListAsync();
-
-            var todayExp = carExp.Where(e => e.Date.Date == today).Sum(e => e.Amount);
-            var weekExp = carExp.Where(e => e.Date.Date >= today.AddDays(-7)).Sum(e => e.Amount);
-            var monthExp = carExp.Where(e => e.Date.Year == today.Year && e.Date.Month == today.Month).Sum(e => e.Amount);
-            var yearExp = carExp.Where(e => e.Date.Year == today.Year).Sum(e => e.Amount);
-            var totalExp = carExp.Sum(e => e.Amount);
+            var carExp = _context.Expenses.Where(e => e.CarId == id);
+            var todayExp = await carExp.Where(e => e.Date >= since.Today).SumAsync(e => e.Amount);
+            var weekExp = await carExp.Where(e => e.Date >= since.Week).SumAsync(e => e.Amount);
+            var monthExp = await carExp.Where(e => e.Date >= since.Month).SumAsync(e => e.Amount);
+            var yearExp = await carExp.Where(e => e.Date >= since.Year).SumAsync(e => e.Amount);
+            var totalExp = await carExp.SumAsync(e => e.Amount);
 
             return Ok(new {
                 trips = new {

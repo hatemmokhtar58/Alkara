@@ -46,19 +46,16 @@ namespace api.Controllers
             var customerExists = await _context.Customers.AnyAsync(c => c.Id == id);
             if (!customerExists) return NotFound();
 
-            var completedTrips = await _context.Trips
-                .Where(t => t.CustomerId == id && t.Status == "Completed" && t.EndTime != null)
-                .ToListAsync();
+            var completedTrips = _context.Trips.Where(t => t.CustomerId == id && t.Status == TripStatuses.Completed && t.EndTime != null);
+            var since = StatsRanges.From(_clock.Now);
 
-            var today = _clock.Now.Date;
-            
-            var todaySpent = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
-            var weekSpent = completedTrips.Where(t => t.EndTime.Value.Date >= today.AddDays(-7)).Sum(t => t.FinalTotal);
-            var monthSpent = completedTrips.Where(t => t.EndTime.Value.Year == today.Year && t.EndTime.Value.Month == today.Month).Sum(t => t.FinalTotal);
-            var yearSpent = completedTrips.Where(t => t.EndTime.Value.Year == today.Year).Sum(t => t.FinalTotal);
+            var todaySpent = await completedTrips.Where(t => t.EndTime >= since.Today).SumAsync(t => t.FinalTotal);
+            var weekSpent = await completedTrips.Where(t => t.EndTime >= since.Week).SumAsync(t => t.FinalTotal);
+            var monthSpent = await completedTrips.Where(t => t.EndTime >= since.Month).SumAsync(t => t.FinalTotal);
+            var yearSpent = await completedTrips.Where(t => t.EndTime >= since.Year).SumAsync(t => t.FinalTotal);
 
             return Ok(new {
-                totalTrips = completedTrips.Count,
+                totalTrips = await completedTrips.CountAsync(),
                 todaySpent = todaySpent,
                 weekSpent = weekSpent,
                 monthSpent = monthSpent,
