@@ -114,7 +114,7 @@ export default function Salaries() {
   const sub = { background: 'var(--gray-800)', color: '#fff', fontWeight: 800 };
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
   const fmt = (n, digits = 0) => Number(n || 0).toFixed(digits);
-  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }) : '-';
+  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', calendar: 'gregory' }) : '-';
 
   const drivers = data?.drivers || [];
   const totals = data?.totals;

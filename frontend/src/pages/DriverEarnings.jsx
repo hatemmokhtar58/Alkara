@@ -29,7 +29,7 @@ const DriverEarnings = () => {
         return () => { cancelled = true; };
     }, [query]);
 
-    const fmtDate = (str) => str ? new Date(str).toLocaleDateString(locale, { day: 'numeric', month: 'short' }) : '-';
+    const fmtDate = (str) => str ? new Date(str).toLocaleDateString(locale, { day: 'numeric', month: 'short', calendar: 'gregory' }) : '-';
     const n = (v) => Number(v || 0).toFixed(0);
 
     const drivers = report?.drivers || [];
