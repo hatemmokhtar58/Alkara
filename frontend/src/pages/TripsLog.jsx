@@ -133,7 +133,7 @@ const TripsLog = ({ userRole }) => {
 
         if (newStatus === 'Cancelled') {
             const warning = trip.status === 'Completed'
-                ? 'إلغاء مشوار منتهي هيلغي قيمته وأي دفعة اتسجلت عليه من حساب العميل. متأكد؟'
+                ? 'إلغاء مشوار منتهٍ سيلغي قيمته وأي دفعة سُجّلت عليه في حساب العميل. هل أنت متأكد؟'
                 : 'تأكيد إلغاء المشوار؟';
             if (!window.confirm(warning)) return;
         }

@@ -26,7 +26,8 @@ namespace api.Controllers
         }
 
         // GET: api/Reports/today
-        // The dashboard summary: today's trips and revenue, today's cash box, and what customers owe now.
+        // The dashboard summary: today's trips and revenue, today's cash box, and what customers owe now. Admins only.
+        [RequireAdmin]
         [HttpGet("today")]
         public async Task<ActionResult> GetToday()
         {

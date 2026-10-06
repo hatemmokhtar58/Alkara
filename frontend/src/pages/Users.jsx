@@ -172,7 +172,7 @@ const Users = () => {
                                     {editingUser ? 'كلمة مرور جديدة (اتركها فارغة لعدم التغيير)' : t('Users.Password')}
                                 </label>
                                 <input className="form-control" type="password" value={password} onChange={e => setPassword(e.target.value)} required={!editingUser} minLength={8} autoComplete="new-password" />
-                                <small style={{ color: 'var(--text-muted)' }}>8 أحرف على الأقل. المستخدم هيغيرها بنفسه أول ما يدخل.</small>
+                                <small style={{ color: 'var(--text-muted)' }}>8 أحرف على الأقل. سيغيّرها المستخدم بنفسه عند أول دخول.</small>
                             </div>
 
                             <div className="form-group">

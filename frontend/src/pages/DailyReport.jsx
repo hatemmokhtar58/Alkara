@@ -87,7 +87,7 @@ export default function DailyReport({ period = 'daily' }) {
                         {report.collections.map((tx, i) => (
                             <tr key={`col-${tx.id}`}>
                                 <td style={cell}>{i + 1}</td>
-                                <td style={cellR}>{tx.type === 'CashCollection' ? 'تحصيل / كاش' : 'تحصيل / ادارة'}</td>
+                                <td style={cellR}>{tx.type === 'CashCollection' ? 'تحصيل / كاش' : 'تحصيل / إدارة'}</td>
                                 <td style={cellR}>{tx.customerName || '-'}</td>
                                 <td style={{ ...cell, fontWeight: 600 }}>{money(tx.amount)}</td>
                                 <td style={cell}>-</td>

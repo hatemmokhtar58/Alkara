@@ -6,12 +6,9 @@ import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
 import { Link } from 'react-router-dom';
 
-// Money figures on the dashboard are for the owner and accountants (reports permission) only.
-const canSeeMoney = () => {
-    try {
-        const u = JSON.parse(localStorage.getItem('user') || '{}');
-        return u.role === 'Admin' || (u.permissions || '').split(',').includes('reports');
-    } catch { return false; }
+// The summary cards on the dashboard are for admins only.
+const isAdmin = () => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}').role === 'Admin'; } catch { return false; }
 };
 const money = (v) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
@@ -81,7 +78,7 @@ const Dashboard = () => {
             setTrips(tripsRes.data);
             setCars(carsRes.data);
             setCustomers(customersRes.data);
-            if (canSeeMoney()) api.get('/Reports/today').then(res => setToday(res.data)).catch(() => setToday(null));
+            if (isAdmin()) api.get('/Reports/today').then(res => setToday(res.data)).catch(() => setToday(null));
         } catch (err) {
             console.error("Error fetching dashboard data", err);
         } finally {
@@ -366,30 +363,28 @@ const Dashboard = () => {
             {!loading && <>
 
             {/* Summary cards */}
-            <div className="summary-cards">
+            {today && <div className="summary-cards">
                 <div className="summary-card">
-                    <div className="summary-label">مشاوير شغالة دلوقتي</div>
+                    <div className="summary-label">المشاوير الجارية الآن</div>
                     <div className="summary-value">{trips.filter(x => x.status === 'Ongoing').length}</div>
-                    <div className="summary-note">ومجدول {trips.filter(x => x.status === 'Scheduled').length}</div>
+                    <div className="summary-note">والمجدولة: {trips.filter(x => x.status === 'Scheduled').length}</div>
                 </div>
-                {today && <>
-                    <div className="summary-card">
-                        <div className="summary-label">إيراد النهارده</div>
+                <div className="summary-card">
+                        <div className="summary-label">إيراد اليوم</div>
                         <div className="summary-value">{money(today.revenue)}</div>
-                        <div className="summary-note">{today.tripsCount} مشوار خلص</div>
+                        <div className="summary-note">المشاوير المكتملة: {today.tripsCount}</div>
                     </div>
                     <Link to="/daily-report" className="summary-card">
-                        <div className="summary-label">في الصندوق النهارده</div>
+                        <div className="summary-label">صافي الصندوق اليوم</div>
                         <div className="summary-value" style={{ color: 'var(--success-color)' }}>{money(today.cashNet)}</div>
-                        <div className="summary-note">كاش بعد المصروفات</div>
+                        <div className="summary-note">النقد بعد خصم المصروفات</div>
                     </Link>
                     <Link to="/wallet" className="summary-card">
-                        <div className="summary-label">ديون على العملاء</div>
+                        <div className="summary-label">مديونيات العملاء</div>
                         <div className="summary-value" style={{ color: 'var(--danger-color)' }}>{money(today.debt)}</div>
-                        <div className="summary-note">على {today.customersOwing} عميل</div>
+                        <div className="summary-note">عدد العملاء: {today.customersOwing}</div>
                     </Link>
-                </>}
-            </div>
+            </div>}
 
             {/* Drivers Table */}
             <div className="table-responsive" style={{ marginTop: '1rem' }}>
@@ -459,7 +454,7 @@ const Dashboard = () => {
 
             {/* Action Buttons - Fixed at bottom */}
             <div className="dashboard-actions">
-                {!selectedDriverId && <div className="dashboard-actions-hint">اختار سائق من الجدول عشان الزراير تشتغل</div>}
+                {!selectedDriverId && <div className="dashboard-actions-hint">اختر سائقاً من الجدول لتفعيل الأزرار</div>}
                 <button className="action-btn action-new" onClick={() => {
                     if (selectedDriverId) handleOpenCreateModal(selectedDriverId);
                     else showToast(t('Dashboard.Msg.SelectDriver'), 'error');

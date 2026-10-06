@@ -36,8 +36,8 @@ public class DashboardTests
         Assert.Equal(500, today.GetProperty("debt").GetDecimal());
         Assert.Equal(1, today.GetProperty("customersOwing").GetInt32());
 
-        // Money figures are for people with the reports permission only.
-        var dispatcher = await factory.CreateEmployeeClientAsync("disp" + Guid.NewGuid().ToString("N")[..6], "trips");
-        Assert.Equal(HttpStatusCode.Forbidden, (await dispatcher.GetAsync("/api/Reports/today")).StatusCode);
+        // The summary is for admins only, even an accountant with every permission does not get it.
+        var accountant = await factory.CreateEmployeeClientAsync("acc" + Guid.NewGuid().ToString("N")[..6], "trips", "fleet", "expenses", "wallet", "reports");
+        Assert.Equal(HttpStatusCode.Forbidden, (await accountant.GetAsync("/api/Reports/today")).StatusCode);
     }
 }

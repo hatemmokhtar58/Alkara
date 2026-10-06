@@ -86,7 +86,7 @@ const Wallet = () => {
                 const money = (v) => Number(Math.abs(v)).toLocaleString('en-US', { maximumFractionDigits: 2 });
                 return (
                     <div className="card">
-                        <h3 className="card-title">العملاء اللي ليهم أو عليهم فلوس</h3>
+                        <h3 className="card-title">العملاء الذين لديهم مديونية أو رصيد</h3>
                         <table className="data-table">
                             <thead>
                                 <tr>
@@ -102,12 +102,12 @@ const Wallet = () => {
                                         <td style={{ fontWeight: 700 }}>{c.name}</td>
                                         <td dir="ltr" style={{ textAlign: 'right' }}>{c.phone}</td>
                                         <td style={{ fontWeight: 700, color: c.walletBalance > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                                            {money(c.walletBalance)} {c.walletBalance > 0 ? 'عليه' : 'له (رصيد)'}
+                                            {money(c.walletBalance)} {c.walletBalance > 0 ? 'مستحق عليه' : 'رصيد له'}
                                         </td>
                                         <td><button type="button" className="btn btn-primary" style={{ padding: '3px 12px', fontSize: '12px' }}>فتح المحفظة</button></td>
                                     </tr>
                                 ))}
-                                {open.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gray-400)' }}>كل العملاء حساباتهم مقفولة، مفيش ديون ولا رصيد</td></tr>}
+                                {open.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', color: 'var(--gray-400)' }}>لا توجد مديونيات أو أرصدة مفتوحة لأي عميل</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -116,7 +116,7 @@ const Wallet = () => {
 
             {selectedCustomer && (
                 <>
-                    <button type="button" className="btn no-print" style={{ marginBottom: '1rem' }} onClick={() => setSelectedCustomer('')}>→ رجوع لقائمة العملاء</button>
+                    <button type="button" className="btn no-print" style={{ marginBottom: '1rem' }} onClick={() => setSelectedCustomer('')}>→ العودة إلى قائمة العملاء</button>
                     <div className="card" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-gradient)', color: 'white' }}>
                         <div>
                             <h3 style={{ marginBottom: '0.5rem', opacity: 0.9 }}>{t('Wallet.Balance')}</h3>

@@ -47,7 +47,7 @@ const DriverEarnings = () => {
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ marginBottom: '0.5rem' }}>إيراد السائقين</h2>
                 <p style={{ color: 'var(--gray-500)', margin: '0 0 0.75rem' }}>
-                    الفلوس الي دخلت من العملاء في الشهر، موزعة على أقدم المشاوير غير المدفوعة أولاً. العمولة على المحصّل بس.
+                    المبالغ المحصّلة من العملاء خلال الشهر، موزعة على أقدم المشاوير غير المدفوعة أولاً. تُحسب العمولة على المبالغ المحصّلة فقط.
                 </p>
                 <PeriodPicker period="monthly" value={range}>
                     <button className="btn btn-primary no-print" onClick={() => window.print()} style={{ marginRight: 'auto', marginTop: '14px' }}>طباعة</button>
@@ -91,7 +91,7 @@ const DriverEarnings = () => {
                                         <td style={c} colSpan="2">مشوار {fmtDate(p.tripDate)}</td>
                                         <td style={c}>{n(p.amount)}</td>
                                         <td style={c} colSpan="2">{SOURCE_LABELS[p.source] || p.source}</td>
-                                        <td style={c} colSpan="2">وصل {fmtDate(p.collectedAt)}</td>
+                                        <td style={c} colSpan="2">حُصّل في {fmtDate(p.collectedAt)}</td>
                                     </tr>
                                 ))}
                             </React.Fragment>

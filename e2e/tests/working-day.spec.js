@@ -101,15 +101,15 @@ test('a full working day', async ({ page, browser }) => {
     await expect(modal).toContainText('200');
     const paid = modal.locator('.form-group', { hasText: 'المبلغ المدفوع' }).locator('input');
     await paid.fill('150');
-    await modal.getByRole('button', { name: 'تاكيد الاغلاق' }).click();
+    await modal.getByRole('button', { name: 'تأكيد الإغلاق' }).click();
     await expect(modal).toBeHidden();
     await expect(driverRow()).not.toContainText(CUSTOMER.name);
 
     // today's summary: 200 revenue, 150 cash in the box, 50 owed by one customer
     const cards = page.locator('.summary-card');
-    await expect(cards.filter({ hasText: 'إيراد النهارده' })).toContainText('200');
-    await expect(cards.filter({ hasText: 'في الصندوق' })).toContainText('150');
-    await expect(cards.filter({ hasText: 'ديون على العملاء' })).toContainText('50');
+    await expect(cards.filter({ hasText: 'إيراد اليوم' })).toContainText('200');
+    await expect(cards.filter({ hasText: 'صافي الصندوق' })).toContainText('150');
+    await expect(cards.filter({ hasText: 'مديونيات العملاء' })).toContainText('50');
   });
 
   await test.step('the customer owes 50, then pays it at the office', async () => {
@@ -157,13 +157,15 @@ test('a full working day', async ({ page, browser }) => {
     const context = await browser.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: 1400, height: 900 } });
     const employee = await context.newPage();
     await login(employee, EMPLOYEE.username, EMPLOYEE.tempPassword);
-    await expect(employee.getByText('لازم تختار كلمة مرور جديدة')).toBeVisible();
+    await expect(employee.getByText('يجب اختيار كلمة مرور جديدة')).toBeVisible();
     const passwords = employee.locator('input[type=password]');
     await passwords.nth(0).fill(EMPLOYEE.tempPassword);
     await passwords.nth(1).fill(EMPLOYEE.password);
     await passwords.nth(2).fill(EMPLOYEE.password);
     await employee.getByRole('button', { name: 'حفظ كلمة المرور' }).click();
 
+    await expect(employee.locator('.drivers-live-table')).toBeVisible();
+    await expect(employee.locator('.summary-cards')).toHaveCount(0); // the summary is for admins only
     const nav = employee.locator('.top-navbar');
     await expect(nav).toContainText('سجل المشاوير');
     await expect(nav).not.toContainText('التقارير');

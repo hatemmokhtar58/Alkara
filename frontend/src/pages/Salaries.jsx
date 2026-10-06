@@ -87,7 +87,7 @@ export default function Salaries() {
   };
 
   const pay = async (driverIds) => {
-    const message = driverIds ? 'تأكيد صرف راتب هذا السائق؟ بعد الصرف الأرقام بتتقفل.' : 'تأكيد صرف رواتب كل السائقين لهذا الشهر؟ بعد الصرف الأرقام بتتقفل.';
+    const message = driverIds ? 'تأكيد صرف راتب هذا السائق؟ بعد الصرف لا يمكن تعديل الأرقام.' : 'تأكيد صرف رواتب كل السائقين لهذا الشهر؟ بعد الصرف لا يمكن تعديل الأرقام.';
     if (!window.confirm(message)) return;
     try {
       const res = await api.post('/Salaries/pay', { year, month, driverIds });
@@ -170,7 +170,7 @@ export default function Salaries() {
           </div>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '8px' }}>
-          العمولة = النسبة × (المحصّل من العملاء في الشهر − البنزين). المحصّل هو الفلوس اللي دخلت فعلاً على مشاوير السائق، وأي تحويل بيتوزع على أقدم المشاوير الأول. دوس على اسم السائق تشوف تفاصيله. خانة النسبة الفاضية معناها النسبة الافتراضية. التعديلات بتتحفظ أول ما تسيب الخانة.
+          العمولة = النسبة × (المحصّل من العملاء خلال الشهر − البنزين). المحصّل هو المبالغ التي دُفعت فعلاً عن مشاوير السائق، ويُوزَّع أي تحويل على أقدم المشاوير أولاً. اضغط على اسم السائق لعرض التفاصيل. ترك خانة النسبة فارغة يعني استخدام النسبة الافتراضية. تُحفظ التعديلات تلقائياً عند مغادرة الخانة.
         </div>
       </div>
 
@@ -237,7 +237,7 @@ export default function Salaries() {
                             <th style={c}>يوم المشوار</th>
                             <th style={c}>المبلغ</th>
                             <th style={c}>طريقة الدفع</th>
-                            <th style={c}>دخل يوم</th>
+                            <th style={c}>تاريخ التحصيل</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -254,7 +254,7 @@ export default function Salaries() {
                       </table>
                       {earnings[d.driverId]?.outstanding > 0 && (
                         <div style={{ marginTop: '6px', color: 'var(--gray-500)' }}>
-                          متبقي على العملاء من مشاوير السائق: {fmt(earnings[d.driverId].outstanding)} (بيدخل في العمولة لما يتدفع)
+                          متبقي على العملاء من مشاوير السائق: {fmt(earnings[d.driverId].outstanding)} (يُضاف إلى العمولة عند سداده)
                         </div>
                       )}
                     </td>
