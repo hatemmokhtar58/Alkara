@@ -12,7 +12,8 @@ namespace api.Services
         public const string TripCharge = "TripCharge";         // + trip total
         public const string TripPayment = "TripPayment";       // - cash or transfer paid at the end of a trip
         public const string CashCollection = "CashCollection"; // - old debt collected by the driver during a trip
-        public const string CashDeposit = "CashDeposit";       // - payment or prepaid credit recorded from the wallet page
+        public const string CashDeposit = "CashDeposit";       // - cash payment or prepaid credit recorded from the wallet page
+        public const string TransferDeposit = "TransferDeposit"; // - bank transfer payment or prepaid credit (not cash, so not in the cash box)
         public const string Reversal = "Reversal";             // opposite of a cancelled trip's entries
         public const string Adjustment = "Adjustment";         // opening balance carried over from the old stored balance
     }
