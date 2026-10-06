@@ -10,7 +10,7 @@ import { SOURCE_LABELS } from '../components/paymentSources';
 // Commission is paid on this money only, in the month it was received. The server does the math.
 const DriverEarnings = () => {
     const { i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
 
     const range = usePeriod();
     const query = periodQuery('monthly', range);

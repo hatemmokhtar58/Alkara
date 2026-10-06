@@ -115,7 +115,7 @@ export default function Salaries() {
   const inputStyle = { width: '70px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px', fontSize: '0.9rem' };
   // 3,016 or 12.5: thousands separated, no trailing .0
   const fmt = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
-  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA-u-ca-gregory', { day: 'numeric', month: 'short' }) : '-';
+  const fmtDate = (str) => str ? new Date(str).toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'short' }) : '-';
 
   const drivers = data?.drivers || [];
   const totals = data?.totals;

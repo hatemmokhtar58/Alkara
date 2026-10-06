@@ -11,7 +11,7 @@ const COLUMNS = ['baseFare', 'finalTotal', 'cash', 'nonCash', 'fuel', 'debt'];
 // Completed trips and expenses for the period, grouped by driver. The server does the math.
 const Statements = ({ period = 'daily' }) => {
     const { i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
 
     const range = usePeriod();
     const query = periodQuery(period, range);

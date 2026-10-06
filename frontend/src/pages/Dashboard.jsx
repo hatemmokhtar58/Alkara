@@ -7,7 +7,7 @@ import PremiumSelect from '../components/PremiumSelect';
 
 const Dashboard = () => {
     const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
     const { showToast } = useToast();
 
     const [selectedDriverId, setSelectedDriverId] = useState(null);
@@ -468,7 +468,7 @@ const Dashboard = () => {
                                 <div><strong>{t('Dashboard.Col.Driver')}:</strong> {drv?.name}</div>
                                 <div><strong>{t('CreateTrip.Customer')}:</strong> {cust?.name}</div>
                                 <div><strong>{t('Dashboard.Col.Phone')}:</strong> <span dir="ltr">{cust?.phone || '--'}</span></div>
-                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--success-darker)', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}</span></div>
+                                <div><strong>{t('Dashboard.Modal.WalletBalance')}:</strong> <span style={{ color: (cust?.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--success-darker)', fontWeight: '700' }}>{(cust?.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}</span></div>
                                 <div><strong>{t('CreateTrip.Car')}:</strong> {car ? `${car.make} ${car.model}` : '--'}</div>
                                 <div><strong>{t('Dashboard.Col.Location')}:</strong> {closingTrip.pickupLocation || '--'}</div>
                             </div>
@@ -647,7 +647,7 @@ const Dashboard = () => {
                                 <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--danger-darker)' }}>💰 تحصيل مديونية</span>
                                 {(cust?.walletBalance || 0) > 0 && (
                                     <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--danger-light)', background: 'var(--danger-bg)', padding: '2px 8px', borderRadius: '6px' }}>
-                                        المديونية: {(cust?.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
+                                        المديونية: {(cust?.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}
                                     </span>
                                 )}
                             </div>
@@ -763,7 +763,7 @@ const Dashboard = () => {
                                         color: (foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-darker)' : 'var(--gray-500)',
                                         border: `1px solid ${(foundCustomer.walletBalance || 0) > 0 ? 'var(--danger-border)' : 'var(--gray-200)'}`
                                     }}>
-                                        {(foundCustomer.walletBalance || 0).toLocaleString()} {t('Dashboard.Currency')}
+                                        {(foundCustomer.walletBalance || 0).toLocaleString('en-US')} {t('Dashboard.Currency')}
                                     </div>
                                 </div>
                             )}

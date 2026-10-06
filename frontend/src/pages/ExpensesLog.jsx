@@ -9,7 +9,7 @@ const CATEGORY_LABELS = { Fuel: 'بنزين', Oil: 'زيت', Wash: 'غسيل', M
 
 const ExpensesLog = () => {
     const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US';
+    const locale = i18n.language === 'ar' ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US';
     const [expenses, setExpenses] = useState([]);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
