@@ -207,7 +207,7 @@ const resources = {
         "HourlyRate": "السعر للساعة",
         "PaidVia": "تم الدفع عن طريق؟",
         "CashOption": "كاش نقدي",
-        "WalletOption": "آجل (خصم من المحفظة)",
+        "WalletOption": "من رصيد العميل (والباقي دين)",
         "WalletWarning": "سيتم إضافة المبلغ على مديونية العميل في المحفظة",
         "ConfirmFinish": "تأكيد وإنهاء",
         "SearchPlaceholder": "ابحث بالعميل، السائق، أو مسار المشوار...",

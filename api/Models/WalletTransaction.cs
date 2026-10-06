@@ -10,7 +10,7 @@ namespace api.Models
         public Customer Customer { get; set; } = null!;
         
         public decimal Amount { get; set; } // موجب = على العميل (مديونية)، سالب = دفع أو رصيد للعميل
-        public string Type { get; set; } = "TripDeduction"; // TripDeduction, CashDeposit, CashRefund
+        public string Type { get; set; } = "TripDeduction"; // see api.Services.WalletTypes
         public string Description { get; set; } = string.Empty;
         
         public DateTime TransactionDate { get; set; }

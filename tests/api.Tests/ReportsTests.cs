@@ -95,6 +95,68 @@ public class ReportsTests
     }
 
     [Fact]
+    public async Task Cashbox_LeavesOutTransferDeposits_ButTheyStillSettleDebt()
+    {
+        var (factory, admin, _, _) = await SeedAsync();
+        await using var _ = factory;
+        var customer = await admin.CreateCustomerAsync("عميل تحويل");
+        var balanceBefore = await admin.CustomerBalanceAsync(customer);
+
+        factory.Clock.Now = new DateTime(2026, 5, 10, 18, 0, 0);
+        (await admin.PostAsJsonAsync("/api/Wallet/Deposit", new { customerId = customer, amount = 500, method = "Transfer" })).EnsureSuccessStatusCode();
+        Assert.Equal(balanceBefore - 500, await admin.CustomerBalanceAsync(customer));
+
+        var daily = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=daily&year=2026&month=5&day=10");
+        Assert.Equal(60, daily.GetProperty("totalCollections").GetDecimal());
+        Assert.Equal(130, daily.GetProperty("net").GetDecimal());
+
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await admin.PostAsJsonAsync("/api/Wallet/Deposit", new { customerId = customer, amount = 10, method = "Cheque" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task PrepaidAndDeferredTrips_CountCashOnlyOnTheDayItIsReceived()
+    {
+        await using var factory = new AlkaraApiFactory();
+        var admin = await factory.CreateAdminClientAsync();
+        var prepaid = await admin.CreateCustomerAsync("عميل دفع مقدم");
+        var deferred = await admin.CreateCustomerAsync("عميل آجل");
+        var driver = await admin.CreateDriverAsync("سائق");
+        var car = await admin.CreateCarAsync();
+
+        // Day 1: one customer pays 300 in advance, another rides for 250 and pays nothing yet
+        factory.Clock.Now = new DateTime(2026, 6, 1, 10, 0, 0);
+        await admin.DepositAsync(prepaid, 300);
+        await admin.RunFixedTripAsync(deferred, driver, car, 250, "Cash", paidAmount: 0);
+
+        // Day 2: the prepaid customer rides for 200 from their credit; the other one pays their debt
+        factory.Clock.Now = new DateTime(2026, 6, 2, 10, 0, 0);
+        await admin.RunFixedTripAsync(prepaid, driver, car, 200, "Wallet");
+        await admin.DepositAsync(deferred, 250);
+
+        async Task<JsonElement> Report(string kind, int day) =>
+            await admin.GetFromJsonAsync<JsonElement>($"/api/Reports/{kind}?period=daily&year=2026&month=6&day={day}");
+
+        var cash1 = await Report("cashbox", 1);
+        Assert.Equal(0, cash1.GetProperty("totalTrips").GetDecimal());      // the unpaid trip brought in no cash
+        Assert.Equal(300, cash1.GetProperty("totalCollections").GetDecimal()); // the advance payment did
+        var statement1 = (await Report("statement", 1)).GetProperty("totals");
+        Assert.Equal(250, statement1.GetProperty("finalTotal").GetDecimal());
+        Assert.Equal(0, statement1.GetProperty("cash").GetDecimal());
+        Assert.Equal(250, statement1.GetProperty("debt").GetDecimal());
+
+        var cash2 = await Report("cashbox", 2);
+        Assert.Equal(0, cash2.GetProperty("totalTrips").GetDecimal());       // paid from credit, already counted on day 1
+        Assert.Equal(250, cash2.GetProperty("totalCollections").GetDecimal()); // the debt collected today
+        var statement2 = (await Report("statement", 2)).GetProperty("totals");
+        Assert.Equal(200, statement2.GetProperty("nonCash").GetDecimal());
+        Assert.Equal(0, statement2.GetProperty("debt").GetDecimal());
+
+        Assert.Equal(-100, await admin.CustomerBalanceAsync(prepaid));
+        Assert.Equal(0, await admin.CustomerBalanceAsync(deferred));
+    }
+
+    [Fact]
     public async Task Reports_RejectBadPeriods_AndNeedReportsPermission()
     {
         await using var factory = new AlkaraApiFactory();
