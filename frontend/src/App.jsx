@@ -42,6 +42,7 @@ function App() {
     const u = JSON.parse(userStr);
     return u.role || u.Role || 'Employee';
   });
+  // eslint-disable-next-line no-unused-vars -- wired into the menu by the permissions change
   const [userPermissions, setUserPermissions] = useState(() => {
     const userStr = localStorage.getItem('user');
     if (!userStr) return [];
@@ -73,11 +74,6 @@ function App() {
   };
 
   const closeSidebar = () => setIsSidebarOpen(false);
-  const toggleSidebar = () => setIsSidebarOpen(true);
-
-  // userRole and userPermissions are now initialized directly from localStorage above
-
-  const hasPerm = (p) => userPermissions.includes(p) || userRole === 'Admin';
 
   const handleLogout = () => {
     localStorage.removeItem('token');

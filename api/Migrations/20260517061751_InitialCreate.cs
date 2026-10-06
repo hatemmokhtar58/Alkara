@@ -215,14 +215,7 @@ namespace api.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[] { "Id", "PasswordHash", "Permissions", "Role", "Username" },
-                values: new object[,]
-                {
-                    { 1, "$2a$11$PDDnCVWz6x59kqsSp9SlTec6rIlQwFkqhYJMRQkqY6ikLAV7cRzT6", "trips,fleet,expenses,wallet,reports,users", "Admin", "admin" },
-                    { 2, "$2a$11$85H1eeAYk1tU7XDTEsDplOO498qZR/vdB9X6d5gcwAairb0edSmO6", "trips", "Employee", "employee" }
-                });
+            // Users are not seeded here any more (no known default password); see DatabaseInitializer.
 
             migrationBuilder.CreateIndex(
                 name: "IX_Expenses_CarId",

@@ -30,10 +30,10 @@ const CustomInput = forwardRef(({ value, onClick, placeholder }, ref) => {
         />
     );
 });
+CustomInput.displayName = 'CustomInput';
 
 const PremiumDatePicker = ({ selected, onChange, placeholder, minDate, showTimeSelect = false }) => {
-    const { t, i18n } = useTranslation();
-    const isRtl = i18n.language === 'ar';
+    const { t } = useTranslation();
 
     const filterPassedTime = (time) => {
         const currentDate = new Date();
@@ -60,7 +60,7 @@ const PremiumDatePicker = ({ selected, onChange, placeholder, minDate, showTimeS
                 className="premium-calendar"
             />
             {/* Global style overrides for the date picker popup specifically for RTL */}
-            <style jsx="true" global="true">{`
+            <style>{`
                 .date-picker-full-width {
                     width: 100%;
                 }

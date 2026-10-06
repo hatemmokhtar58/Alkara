@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import api from '../api';
 
 export default function Salaries() {
-  const { t } = useTranslation();
-  const currency = t('Dashboard.Currency');
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
