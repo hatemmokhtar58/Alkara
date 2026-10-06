@@ -8,7 +8,6 @@ const Drivers = ({ userRole }) => {
     const { t } = useTranslation();
     const { showToast } = useToast();
     const [drivers, setDrivers] = useState([]);
-    const [trips, setTrips] = useState([]);
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [baseSalary, setBaseSalary] = useState('');
@@ -41,11 +40,10 @@ const Drivers = ({ userRole }) => {
 
     const fetchDrivers = () => {
         api.get('/Drivers').then(res => setDrivers(res.data)).catch(console.error);
-        api.get('/Trips').then(res => setTrips(res.data)).catch(console.error);
     }
 
     const driverHasActiveTrip = (driverId) => {
-        return trips.some(t => t.driverId === driverId && t.status === 'Ongoing');
+        return !!drivers.find(d => d.id === driverId)?.onTrip;
     };
 
     const handleAdd = async (e) => {
@@ -67,7 +65,7 @@ const Drivers = ({ userRole }) => {
         }
         const newStatus = driver.status === 'Available' ? 'Busy' : 'Available';
         try {
-            await api.put(`/Drivers/${driver.id}`, { ...driver, status: newStatus });
+            await api.put(`/Drivers/${driver.id}/status`, { status: newStatus });
             showToast(t('Common.Success'), 'success');
             fetchDrivers();
         } catch (err) {
@@ -98,7 +96,6 @@ const Drivers = ({ userRole }) => {
         e.preventDefault();
         try {
             await api.put(`/Drivers/${editingDriver.id}`, { 
-                ...editingDriver, 
                 name: editName, 
                 phone: editPhone,
                 baseSalary: parseFloat(editBaseSalary) || 0
@@ -142,7 +139,7 @@ const Drivers = ({ userRole }) => {
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
                         <label className="form-label">{t('Drivers.Phone')}</label>
-                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '120px' }}>
                         <label className="form-label">الراتب الشهري</label>
@@ -330,7 +327,7 @@ const Drivers = ({ userRole }) => {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">{t('Drivers.Phone')}</label>
-                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">الراتب الشهري</label>

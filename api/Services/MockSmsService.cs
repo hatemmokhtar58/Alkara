@@ -1,5 +1,6 @@
 namespace api.Services
 {
+    /// <summary>Writes messages to the log instead of sending them (for local development).</summary>
     public class MockSmsService : ISmsService
     {
         private readonly ILogger<MockSmsService> _logger;
@@ -9,15 +10,10 @@ namespace api.Services
             _logger = logger;
         }
 
-        public Task<bool> SendSmsAsync(string phoneNumber, string message)
+        public Task<SmsSendResult> SendSmsAsync(string phoneNumber, string message)
         {
-            // سيتم استبدال هذا الكود لاحقاً للربط مع SMS API الحقيقي (مثل Unifonic أو Jawaly)
-            _logger.LogInformation("================================================");
-            _logger.LogInformation($"[SMS MOCK] Sending SMS to: {phoneNumber}");
-            _logger.LogInformation($"[SMS MOCK] Message: {message}");
-            _logger.LogInformation("================================================");
-            
-            return Task.FromResult(true); // يفترض أن عملية الإرسال نجحت ہمیشہ
+            _logger.LogInformation("[SMS MOCK] To {Phone}: {Message}", phoneNumber, message);
+            return Task.FromResult(SmsSendResult.Ok());
         }
     }
 }

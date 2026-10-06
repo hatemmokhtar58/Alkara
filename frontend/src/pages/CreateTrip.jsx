@@ -64,10 +64,7 @@ const CreateTrip = ({ userRole }) => {
                 hourlyRate: pricingType === 'Hourly' && hourlyRate ? parseFloat(hourlyRate) : null,
                 pickupLocation: pickupLocation || null,
                 dropoffLocation: dropoffLocation || null,
-                scheduledFor: scheduledFor ? new Date(scheduledFor.getTime() - (scheduledFor.getTimezoneOffset() * 60000)).toISOString().slice(0, 19) : null,
-                status: 'Scheduled',
-                requestTime: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 19),
-                paymentMethod: 'Cash' // Default initial
+                scheduledFor: scheduledFor ? scheduledFor.toISOString() : null
             });
             // Reset
             setCustomerId(''); setDriverId(''); setCarId(''); setFixedPrice(''); setHourlyRate(''); setPricingType('');

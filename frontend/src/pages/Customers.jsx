@@ -74,7 +74,6 @@ const Customers = () => {
         e.preventDefault();
         try {
             await api.put(`/Customers/${editingCustomer.id}`, { 
-                ...editingCustomer, 
                 name: editName, 
                 phone: editPhone 
             });
@@ -117,7 +116,7 @@ const Customers = () => {
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
                         <label className="form-label">{t('Customers.Phone')}</label>
-                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required />
+                        <input className="form-control" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                     </div>
                     <button type="submit" className="btn btn-secondary">{t('Customers.AddBtn')}</button>
                 </form>
@@ -269,7 +268,7 @@ const Customers = () => {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">{t('Customers.Phone')}</label>
-                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} required />
+                                <input className="form-control" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="05XXXXXXXX" dir="ltr" required />
                             </div>
                             <div style={{display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'2rem'}}>
                                 <button type="button" className="btn" onClick={() => setEditModalOpen(false)}>{t('Common.Close')}</button>

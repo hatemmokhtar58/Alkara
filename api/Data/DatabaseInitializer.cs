@@ -17,6 +17,19 @@ namespace api.Data
             await BaselineLegacyDatabaseAsync(context, logger);
             await context.Database.MigrateAsync();
             await SeedInitialAdminAsync(context, configuration, logger);
+            await FlagDefaultPasswordsAsync(context, logger);
+        }
+
+        // Older installs created accounts with the password "123456"; make their owners pick a new one.
+        private static async Task FlagDefaultPasswordsAsync(AppDbContext context, ILogger logger)
+        {
+            var users = await context.Users.Where(u => !u.MustChangePassword).ToListAsync();
+            var flagged = users.Where(u => BCrypt.Net.BCrypt.Verify("123456", u.PasswordHash)).ToList();
+            if (flagged.Count == 0) return;
+
+            foreach (var user in flagged) user.MustChangePassword = true;
+            await context.SaveChangesAsync();
+            logger.LogWarning("{Count} user(s) still had the default password and must change it at next login.", flagged.Count);
         }
 
         // Databases created by EnsureCreated() have all the tables but no __EFMigrationsHistory,
@@ -88,7 +101,8 @@ namespace api.Data
                 Username = username,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 Role = "Admin",
-                Permissions = "trips,fleet,expenses,wallet,reports,users"
+                Permissions = api.Auth.Permissions.Normalize(api.Auth.Permissions.All),
+                MustChangePassword = generated
             });
             await context.SaveChangesAsync();
 

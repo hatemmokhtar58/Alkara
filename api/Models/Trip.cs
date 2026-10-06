@@ -2,7 +2,7 @@ using System;
 
 namespace api.Models
 {
-    public class Trip
+    public class Trip : IHasCreator
     {
         public int Id { get; set; }
         
@@ -17,8 +17,9 @@ namespace api.Models
         public Car? Car { get; set; }
 
         // Times
-        public DateTime RequestTime { get; set; } = DateTime.Now;
+        public DateTime RequestTime { get; set; }
         public DateTime? ScheduledFor { get; set; }
+        public DateTime? DepartedAt { get; set; } // driver left the office to pick the customer up
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
 
@@ -34,6 +35,8 @@ namespace api.Models
         // Discount
         public string DiscountType { get; set; } = "None"; // "Amount", "Percentage", "None"
         public decimal DiscountValue { get; set; }
+
+        public decimal ExtraCharge { get; set; }
         
         // Final Status
         public decimal FinalTotal { get; set; }
@@ -41,5 +44,8 @@ namespace api.Models
         public string Status { get; set; } = "Scheduled"; // Scheduled, Ongoing, Completed, Cancelled
         public string PaymentMethod { get; set; } = "Cash"; // Cash, Wallet, Transfer
         public string? Notes { get; set; }
+
+        // The user who recorded it (users are never hard-deleted, see User.DeletedAt).
+        public int? CreatedByUserId { get; set; }
     }
 }

@@ -22,6 +22,65 @@ namespace api.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("api.Models.AppSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("AppSettings");
+                });
+
+            modelBuilder.Entity("api.Models.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Changes")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("api.Models.Car", b =>
                 {
                     b.Property<int>("Id")
@@ -44,7 +103,8 @@ namespace api.Migrations
 
                     b.Property<string>("PlateNumber")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -54,6 +114,9 @@ namespace api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlateNumber")
+                        .IsUnique();
 
                     b.ToTable("Cars");
                 });
@@ -75,12 +138,13 @@ namespace api.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<decimal>("WalletBalance")
-                        .HasColumnType("decimal(18,2)");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Phone")
+                        .IsUnique();
 
                     b.ToTable("Customers");
                 });
@@ -94,7 +158,10 @@ namespace api.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("BaseSalary")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("CommissionPercent")
+                        .HasColumnType("decimal(5,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -102,7 +169,8 @@ namespace api.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -111,6 +179,70 @@ namespace api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Drivers");
+                });
+
+            modelBuilder.Entity("api.Models.DriverMonthlySalary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Allowances")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseSalary")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Commission")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CommissionPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Deductions")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("DriverId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("PaidByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalExpenses")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalIncome")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TripsCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DriverId", "Year", "Month")
+                        .IsUnique();
+
+                    b.ToTable("DriverMonthlySalaries");
                 });
 
             modelBuilder.Entity("api.Models.Expense", b =>
@@ -131,6 +263,9 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime(6)");
 
@@ -145,9 +280,56 @@ namespace api.Migrations
 
                     b.HasIndex("CarId");
 
+                    b.HasIndex("Date");
+
                     b.HasIndex("DriverId");
 
                     b.ToTable("Expenses");
+                });
+
+            modelBuilder.Entity("api.Models.SmsLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Event")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("SentByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("TripId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SentAt");
+
+                    b.ToTable("SmsLogs");
                 });
 
             modelBuilder.Entity("api.Models.Trip", b =>
@@ -161,8 +343,14 @@ namespace api.Migrations
                     b.Property<int>("CarId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("DepartedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("DiscountType")
                         .IsRequired()
@@ -180,6 +368,9 @@ namespace api.Migrations
                     b.Property<DateTime?>("EndTime")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<decimal>("ExtraCharge")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("FinalTotal")
                         .HasColumnType("decimal(18,2)");
 
@@ -193,7 +384,7 @@ namespace api.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<decimal>("PaidAmount")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
@@ -216,7 +407,8 @@ namespace api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
 
@@ -225,6 +417,8 @@ namespace api.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("DriverId");
+
+                    b.HasIndex("Status", "EndTime");
 
                     b.ToTable("Trips");
                 });
@@ -236,6 +430,12 @@ namespace api.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -249,11 +449,18 @@ namespace api.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("int");
+
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
@@ -268,6 +475,9 @@ namespace api.Migrations
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
@@ -288,11 +498,24 @@ namespace api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
+                    b.HasIndex("TransactionDate");
 
                     b.HasIndex("TripId");
 
+                    b.HasIndex("CustomerId", "TransactionDate");
+
                     b.ToTable("WalletTransactions");
+                });
+
+            modelBuilder.Entity("api.Models.DriverMonthlySalary", b =>
+                {
+                    b.HasOne("api.Models.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Driver");
                 });
 
             modelBuilder.Entity("api.Models.Expense", b =>
@@ -340,7 +563,7 @@ namespace api.Migrations
             modelBuilder.Entity("api.Models.WalletTransaction", b =>
                 {
                     b.HasOne("api.Models.Customer", "Customer")
-                        .WithMany()
+                        .WithMany("WalletTransactions")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -364,6 +587,8 @@ namespace api.Migrations
             modelBuilder.Entity("api.Models.Customer", b =>
                 {
                     b.Navigation("Trips");
+
+                    b.Navigation("WalletTransactions");
                 });
 
             modelBuilder.Entity("api.Models.Driver", b =>

@@ -1,4 +1,7 @@
+using api.Auth;
+using api.Dtos;
 using api.Models;
+using api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,40 +9,53 @@ namespace api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [RequirePermission(Permissions.Fleet)]
     public class CustomersController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IClock _clock;
 
-        public CustomersController(AppDbContext context)
+        public CustomersController(AppDbContext context, IClock clock)
         {
             _context = context;
+            _clock = clock;
         }
 
+        [RequirePermission(Permissions.Trips, Permissions.Fleet, Permissions.Expenses, Permissions.Wallet, Permissions.Reports)]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Customer>>> GetCustomers()
+        public async Task<ActionResult> GetCustomers()
         {
-            return await _context.Customers.ToListAsync();
+            var customers = await _context.Customers
+                .OrderBy(c => c.Name)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.Phone,
+                    c.CreatedAt,
+                    WalletBalance = c.WalletTransactions.Sum(w => w.Amount)
+                })
+                .ToListAsync();
+            return Ok(customers);
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Reports, Permissions.Wallet)]
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<object>> GetCustomerStats(int id)
         {
             var customerExists = await _context.Customers.AnyAsync(c => c.Id == id);
             if (!customerExists) return NotFound();
 
-            var completedTrips = await _context.Trips
-                .Where(t => t.CustomerId == id && t.Status == "Completed" && t.EndTime != null)
-                .ToListAsync();
+            var completedTrips = _context.Trips.Where(t => t.CustomerId == id && t.Status == TripStatuses.Completed && t.EndTime != null);
+            var since = StatsRanges.From(_clock.Now);
 
-            var today = DateTime.Today;
-            
-            var todaySpent = completedTrips.Where(t => t.EndTime.Value.Date == today).Sum(t => t.FinalTotal);
-            var weekSpent = completedTrips.Where(t => t.EndTime.Value.Date >= today.AddDays(-7)).Sum(t => t.FinalTotal);
-            var monthSpent = completedTrips.Where(t => t.EndTime.Value.Year == today.Year && t.EndTime.Value.Month == today.Month).Sum(t => t.FinalTotal);
-            var yearSpent = completedTrips.Where(t => t.EndTime.Value.Year == today.Year).Sum(t => t.FinalTotal);
+            var todaySpent = await completedTrips.Where(t => t.EndTime >= since.Today).SumAsync(t => t.FinalTotal);
+            var weekSpent = await completedTrips.Where(t => t.EndTime >= since.Week).SumAsync(t => t.FinalTotal);
+            var monthSpent = await completedTrips.Where(t => t.EndTime >= since.Month).SumAsync(t => t.FinalTotal);
+            var yearSpent = await completedTrips.Where(t => t.EndTime >= since.Year).SumAsync(t => t.FinalTotal);
 
             return Ok(new {
-                totalTrips = completedTrips.Count,
+                totalTrips = await completedTrips.CountAsync(),
                 todaySpent = todaySpent,
                 weekSpent = weekSpent,
                 monthSpent = monthSpent,
@@ -47,23 +63,41 @@ namespace api.Controllers
             });
         }
 
+        [RequirePermission(Permissions.Fleet, Permissions.Trips)]
         [HttpPost]
-        public async Task<ActionResult<Customer>> PostCustomer(Customer customer)
+        public async Task<ActionResult> PostCustomer(CustomerRequest request)
         {
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
+            var existing = await _context.Customers.FirstOrDefaultAsync(c => c.Phone == phone);
+            if (existing != null)
+                return Conflict(new { message = $"الرقم {phone} مسجل بالفعل باسم العميل {existing.Name}." });
+
+            var customer = new Customer { Name = request.Name.Trim(), Phone = phone, CreatedAt = _clock.Now };
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, customer);
+            return CreatedAtAction(nameof(GetCustomers), new { id = customer.Id }, new { customer.Id, customer.Name, customer.Phone, customer.CreatedAt, WalletBalance = 0m });
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, Customer customer)
+        public async Task<IActionResult> PutCustomer(int id, CustomerRequest request)
         {
-            if (id != customer.Id)
-            {
-                return BadRequest();
-            }
+            var customer = await _context.Customers.FindAsync(id);
+            if (customer == null) return NotFound();
 
-            _context.Entry(customer).State = EntityState.Modified;
+            var error = request.Validate();
+            if (error != null) return BadRequest(new { message = error });
+
+            var phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
+            var existing = await _context.Customers.FirstOrDefaultAsync(c => c.Phone == phone && c.Id != id);
+            if (existing != null)
+                return Conflict(new { message = $"الرقم {phone} مسجل بالفعل باسم العميل {existing.Name}." });
+
+            // Only the contact details; the balance comes from wallet transactions.
+            customer.Name = request.Name.Trim();
+            customer.Phone = phone;
             await _context.SaveChangesAsync();
 
             return NoContent();

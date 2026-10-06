@@ -4,6 +4,8 @@ using api.Data;
 using api.Models;
 using api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,7 +31,7 @@ public class DatabaseStartupTests
         var login = await anonymous.PostAsJsonAsync("/api/Auth/login", new { username = "employee", password = "123456" });
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
 
-        Assert.Equal(3, await CountAppliedMigrationsAsync(factory));
+        Assert.Equal(AllMigrations(factory), await CountAppliedMigrationsAsync(factory));
     }
 
     [Fact]
@@ -37,29 +39,44 @@ public class DatabaseStartupTests
     {
         await using var factory = new AlkaraApiFactory();
 
-        // Recreate what the old startup did: tables from EnsureCreated(), no migrations history.
+        // Recreate what the old startup left behind: the schema as of AddBaseSalaryToDriver
+        // (as EnsureCreated() built it) with no migrations history table.
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseMySql(factory.ConnectionString, ServerVersion.AutoDetect(AlkaraApiFactory.ServerConnectionString))
             .Options;
         await using (var legacy = new AppDbContext(options))
         {
-            await legacy.Database.EnsureCreatedAsync();
-            legacy.Users.Add(new User { Username = "owner", PasswordHash = BCrypt.Net.BCrypt.HashPassword("owner-pass"), Role = "Admin", Permissions = "trips" });
-            legacy.Customers.Add(new Customer { Name = "عميل قديم", Phone = "0500000000", WalletBalance = 75 });
-            await legacy.SaveChangesAsync();
+            await legacy.GetService<IMigrator>().MigrateAsync("20260606221026_AddBaseSalaryToDriver");
+            await legacy.Database.ExecuteSqlRawAsync("DROP TABLE `__EFMigrationsHistory`;");
+            await legacy.Database.ExecuteSqlRawAsync(
+                "INSERT INTO Users (Username, PasswordHash, Role, Permissions) VALUES ('owner', {0}, 'Admin', 'trips');",
+                BCrypt.Net.BCrypt.HashPassword("owner-pass"));
+            await legacy.Database.ExecuteSqlRawAsync(
+                "INSERT INTO Users (Username, PasswordHash, Role, Permissions) VALUES ('employee', {0}, 'Employee', 'trips');",
+                BCrypt.Net.BCrypt.HashPassword("123456"));
+            await legacy.Database.ExecuteSqlRawAsync(
+                "INSERT INTO Customers (Name, Phone, CreatedAt, WalletBalance) VALUES ('عميل قديم', '0500000000', NOW(), 75);");
         }
 
         var owner = await factory.CreateClientAsAsync("owner", "owner-pass");
-        var customers = await owner.GetFromJsonAsync<List<Customer>>("/api/Customers");
+        var customers = await owner.GetFromJsonAsync<List<CustomerRow>>("/api/Customers");
         var customer = Assert.Single(customers!);
         Assert.Equal("عميل قديم", customer.Name);
+        // The old stored balance survives as an opening adjustment in the wallet ledger.
         Assert.Equal(75, customer.WalletBalance);
+        Assert.Equal(75, await owner.AssertBalanceConsistentAsync(customer.Id));
 
         // Existing users are kept, and no extra admin is created when users already exist.
         var users = await owner.GetFromJsonAsync<List<UserRow>>("/api/Users");
-        Assert.Equal("owner", Assert.Single(users!).Username);
+        Assert.Equal(new[] { "owner", "employee" }, users!.Select(u => u.Username));
 
-        Assert.Equal(3, await CountAppliedMigrationsAsync(factory));
+        // The old default password still logs in, but only to choose a new one.
+        var employee = await factory.CreateClientAsAsync("employee", "123456");
+        var me = await employee.GetFromJsonAsync<Me>("/api/Auth/me");
+        Assert.True(me!.MustChangePassword);
+        Assert.Equal(HttpStatusCode.Forbidden, (await employee.GetAsync("/api/Trips")).StatusCode);
+
+        Assert.Equal(AllMigrations(factory), await CountAppliedMigrationsAsync(factory));
     }
 
     [Fact]
@@ -76,7 +93,7 @@ public class DatabaseStartupTests
             Assert.Equal(1, await context.Users.CountAsync());
         }
 
-        Assert.Equal(3, await CountAppliedMigrationsAsync(factory));
+        Assert.Equal(AllMigrations(factory), await CountAppliedMigrationsAsync(factory));
     }
 
     [Fact]
@@ -92,6 +109,12 @@ public class DatabaseStartupTests
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
     }
 
+    private static long AllMigrations(AlkaraApiFactory factory)
+    {
+        using var scope = factory.Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.GetMigrations().Count();
+    }
+
     private static async Task<long> CountAppliedMigrationsAsync(AlkaraApiFactory factory)
     {
         await using var connection = new MySqlConnection(factory.ConnectionString);
@@ -101,5 +124,7 @@ public class DatabaseStartupTests
         return Convert.ToInt64(await cmd.ExecuteScalarAsync());
     }
 
-    private record UserRow(int Id, string Username, string Role, string Permissions);
+    private record CustomerRow(int Id, string Name, string Phone, decimal WalletBalance);
+
+    private record UserRow(int Id, string Username, string Role, string Permissions, bool MustChangePassword);
 }

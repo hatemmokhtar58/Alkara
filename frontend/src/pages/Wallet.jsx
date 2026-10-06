@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 import PremiumSelect from '../components/PremiumSelect';
 import { useTranslation } from 'react-i18next';
@@ -16,24 +16,23 @@ const Wallet = () => {
     // Deposit Form
     const [depositAmount, setDepositAmount] = useState('');
     const [depositNote, setDepositNote] = useState('');
+    const [depositMethod, setDepositMethod] = useState('Cash');
 
     useEffect(() => {
         api.get('/Customers').then(res => setCustomers(res.data)).catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (selectedCustomer) {
-            fetchWalletInfo();
-        } else {
+    const fetchWalletInfo = useCallback(() => {
+        if (!selectedCustomer) {
             setWalletData({ balance: 0, transactions: [] });
+            return;
         }
-    }, [selectedCustomer]);
-
-    const fetchWalletInfo = () => {
         api.get(`/Wallet/${selectedCustomer}`)
             .then(res => setWalletData(res.data))
-            .catch(console.error);
-    };
+            .catch(() => {});
+    }, [selectedCustomer]);
+
+    useEffect(() => { fetchWalletInfo(); }, [fetchWalletInfo]);
 
     const handleDeposit = async (e) => {
         e.preventDefault();
@@ -41,11 +40,13 @@ const Wallet = () => {
             await api.post('/Wallet/Deposit', {
                 customerId: parseInt(selectedCustomer),
                 amount: parseFloat(depositAmount),
+                method: depositMethod,
                 note: depositNote
             });
             showToast(t('Common.Success'), 'success');
             setDepositAmount('');
             setDepositNote('');
+            setDepositMethod('Cash');
             fetchWalletInfo();
         } catch (err) {
             console.error(err);
@@ -81,7 +82,10 @@ const Wallet = () => {
                         <div>
                             <h3 style={{ marginBottom: '0.5rem', opacity: 0.9 }}>{t('Wallet.Balance')}</h3>
                             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: walletData.balance > 0 ? '#ffcccc' : (walletData.balance < 0 ? '#ccffcc' : 'white') }}>
-                                {(walletData.balance * -1)} <span style={{fontSize: '1rem'}}>{t('Dashboard.Currency')}</span>
+                                {Math.abs(walletData.balance)} <span style={{fontSize: '1rem'}}>{t('Dashboard.Currency')}</span>
+                            </div>
+                            <div style={{ opacity: 0.9 }}>
+                                {walletData.balance > 0 ? t('Statements.Customer.Owes') : walletData.balance < 0 ? t('Statements.Customer.Owed') : t('Statements.Customer.Settled')}
                             </div>
                         </div>
                         <div style={{ background: 'white', padding: '1.5rem', borderRadius: 'var(--radius-md)', color: 'black', width: '350px' }}>
@@ -93,23 +97,23 @@ const Wallet = () => {
                                 <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>{t('Wallet.NoteLabel')}</label>
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteCashDriver'))}
+                                        <button type="button" onClick={() => { setDepositMethod('Cash'); setDepositNote(t('Wallet.NoteCashDriver')); }}
                                             style={{
                                                 flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
                                                 fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-100)',
-                                                color: depositNote === t('Wallet.NoteCashDriver') ? 'white' : 'var(--gray-700)',
-                                                border: `2px solid ${depositNote === t('Wallet.NoteCashDriver') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                                background: depositMethod === 'Cash' ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositMethod === 'Cash' ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositMethod === 'Cash' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                             }}>
                                             💰 {t('Wallet.NoteCashDriver')}
                                         </button>
-                                        <button type="button" onClick={() => setDepositNote(t('Wallet.NoteTransferAdmin'))}
+                                        <button type="button" onClick={() => { setDepositMethod('Transfer'); setDepositNote(t('Wallet.NoteTransferAdmin')); }}
                                             style={{
                                                 flex: 1, padding: '8px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '0.9rem',
                                                 fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-100)',
-                                                color: depositNote === t('Wallet.NoteTransferAdmin') ? 'white' : 'var(--gray-700)',
-                                                border: `2px solid ${depositNote === t('Wallet.NoteTransferAdmin') ? 'var(--primary-color)' : 'var(--gray-200)'}`
+                                                background: depositMethod === 'Transfer' ? 'var(--primary-color)' : 'var(--gray-100)',
+                                                color: depositMethod === 'Transfer' ? 'white' : 'var(--gray-700)',
+                                                border: `2px solid ${depositMethod === 'Transfer' ? 'var(--primary-color)' : 'var(--gray-200)'}`
                                             }}>
                                             🏦 {t('Wallet.NoteTransferAdmin')}
                                         </button>
@@ -130,28 +134,31 @@ const Wallet = () => {
                                 <th>{t('Wallet.Amount')}</th>
                                 <th>{t('Wallet.Details')}</th>
                                 <th>{t('Wallet.TripId')}</th>
+                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
                             {walletData.transactions.map(tData => {
-                                const displayedAmount = tData.amount * -1;
+                                // Positive = charged to the customer, negative = paid by the customer
+                                const isPayment = tData.amount < 0;
                                 const customerObj = customers.find(c => c.id === parseInt(selectedCustomer));
                                 return (
                                     <tr key={tData.id}>
                                         <td><span className="badge" style={{background: 'var(--gray-200)', color: 'var(--gray-800)'}}>{customerObj ? customerObj.name : '-'}</span></td>
                                         <td>{formatDate(tData.transactionDate)}</td>
                                         <td>
-                                            {(tData.type === 'CashDeposit' || tData.type === 'CashCollection') ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
+                                            {isPayment ? <span className="badge badge-success">{t('Wallet.DepositBadge')}</span> : <span className="badge badge-warning">{t('Wallet.TripBadge')}</span>}
                                         </td>
-                                        <td style={{fontWeight: 'bold', color: displayedAmount > 0 ? 'var(--success-color)' : (displayedAmount < 0 ? 'var(--danger-color)' : 'inherit')}}>
-                                            {displayedAmount > 0 ? `+${displayedAmount}` : displayedAmount} {t('Dashboard.Currency')}
+                                        <td style={{fontWeight: 'bold', color: isPayment ? 'var(--success-color)' : 'var(--danger-color)'}}>
+                                            {isPayment ? `+${Math.abs(tData.amount)}` : `-${tData.amount}`} {t('Dashboard.Currency')}
                                         </td>
                                         <td>{tData.description}</td>
                                         <td>{tData.tripId ? `#${tData.tripId}` : '-'}</td>
+                                        <td style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>{tData.createdBy || '-'}</td>
                                     </tr>
                                 );
                             })}
-                            {walletData.transactions.length === 0 && <tr><td colSpan="6" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
+                            {walletData.transactions.length === 0 && <tr><td colSpan="7" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
                         </tbody>
                     </table>
                 </>

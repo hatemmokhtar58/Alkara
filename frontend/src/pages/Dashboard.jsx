@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
+import { normalizeSaudiMobile } from '../utils/phone';
 import { useToast } from '../context/ToastContext';
 import PremiumSelect from '../components/PremiumSelect';
 
@@ -16,7 +17,6 @@ const Dashboard = () => {
     const [customers, setCustomers] = useState([]);
     const [actionLoading, setActionLoading] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [departedTrips, setDepartedTrips] = useState({});
 
     // Close trip modal
     const [closeModalOpen, setCloseModalOpen] = useState(false);
@@ -62,7 +62,7 @@ const Dashboard = () => {
         try {
             const [driversRes, tripsRes, carsRes, customersRes] = await Promise.all([
                 api.get('/Drivers'),
-                api.get('/Trips'),
+                api.get('/Trips?status=Scheduled,Ongoing'),
                 api.get('/Cars'),
                 api.get('/Customers')
             ]);
@@ -124,7 +124,8 @@ const Dashboard = () => {
         setNewPhone('');
         setFoundCustomer(null);
         setNewCustomerName('');
-        setNewCarId(driver.carId || '');
+        // Default to the car this driver used last
+        setNewCarId(driver.lastCarId || '');
         setNewPickup('');
         setNewDropoff('');
         setNewPricingType('Hourly');
@@ -136,8 +137,9 @@ const Dashboard = () => {
     // Search customer by phone
     const handlePhoneSearch = (phone) => {
         setNewPhone(phone);
-        if (phone.length >= 10) {
-            const found = customers.find(c => c.phone === phone || c.phone === phone.replace(/^0/, ''));
+        const normalized = normalizeSaudiMobile(phone);
+        if (normalized) {
+            const found = customers.find(c => c.phone === normalized);
             if (found) {
                 setFoundCustomer(found);
                 setNewCustomerName(found.name);
@@ -153,8 +155,12 @@ const Dashboard = () => {
 
     // Submit create trip
     const handleCreateTrip = async () => {
-        if (!selectedDriverId || !newPhone || newPhone.length < 10) {
+        if (!selectedDriverId || !normalizeSaudiMobile(newPhone)) {
             showToast(t('Dashboard.Msg.FillRequired'), 'error');
+            return;
+        }
+        if (!newCarId) {
+            showToast('يرجى اختيار سيارة.', 'error');
             return;
         }
 
@@ -174,8 +180,7 @@ const Dashboard = () => {
                 }
                 const res = await api.post('/Customers', {
                     name: newCustomerName.trim(),
-                    phone: newPhone,
-                    walletBalance: 0
+                    phone: newPhone
                 });
                 customerId = res.data.id;
                 // Refresh customers list
@@ -186,23 +191,18 @@ const Dashboard = () => {
             await api.post('/Trips' + (!smsEnabled ? '?skipSms=true' : ''), {
                 customerId: customerId,
                 driverId: selectedDriverId,
-                carId: newCarId ? parseInt(newCarId) : null,
+                carId: parseInt(newCarId),
                 pricingType: newPricingType || null,
                 fixedPrice: newPricingType === 'Fixed' && newFixedPrice ? parseFloat(newFixedPrice) : null,
                 hourlyRate: newPricingType === 'Hourly' && newHourlyRate ? parseFloat(newHourlyRate) : null,
                 pickupLocation: newPickup || null,
-                dropoffLocation: newDropoff || null,
-                scheduledFor: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 19),
-                status: 'Scheduled',
-                requestTime: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 19),
-                paymentMethod: 'Cash'
+                dropoffLocation: newDropoff || null
             });
             showToast(t('Dashboard.Msg.TripCreated'), 'success');
             setCreateModalOpen(false);
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -215,13 +215,11 @@ const Dashboard = () => {
 
         setActionLoading(true);
         try {
-            const tripData = { ...row.trip, status: 'Ongoing', customer: null, driver: null, car: null };
-            await api.put(`/Trips/${row.trip.id}` + (!smsEnabled ? '?skipSms=true' : ''), tripData);
+            await api.post(`/Trips/${row.trip.id}/start` + (!smsEnabled ? '?skipSms=true' : ''));
             showToast(t('Dashboard.Msg.TripStarted'), 'success');
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -281,36 +279,29 @@ const Dashboard = () => {
             showToast(t('Dashboard.Msg.EnterPaidAmount'), 'error');
             return;
         }
-        const totals = getCloseTotals();
         setActionLoading(true);
         try {
-            const tripData = {
-                ...closingTrip,
-                status: 'Completed',
+            // The server works out the duration and total itself; this screen only shows a preview.
+            const completion = {
                 pricingType: closePricingType,
                 hourlyRate: closePricingType === 'Hourly' ? Number(closeHourlyRate) : null,
                 fixedPrice: closePricingType === 'Fixed' ? Number(closeFixedPrice) : null,
                 paymentMethod: closePaymentMethod,
                 paidAmount: parseFloat(closePaidAmount) || 0,
-                finalTotal: totals.total,
                 discountType: closeDiscount && parseFloat(closeDiscount) > 0 ? 'Amount' : 'None',
                 discountValue: parseFloat(closeDiscount) || 0,
-                notes: closeNotes || null,
-                customer: null, driver: null, car: null
+                extraCharge: parseFloat(closeExtra) || 0,
+                collectionAmount: parseFloat(closeCollectionAmount) || 0,
+                notes: closeNotes || null
             };
-            const queryParams = [];
-            if (!smsEnabled) queryParams.push('skipSms=true');
-            if (closeCollectionAmount && parseFloat(closeCollectionAmount) > 0) queryParams.push(`collectionAmount=${parseFloat(closeCollectionAmount)}`);
-            const queryString = queryParams.length > 0 ? '?' + queryParams.join('&') : '';
-            await api.put(`/Trips/${closingTrip.id}${queryString}`, tripData);
+            const res = await api.post(`/Trips/${closingTrip.id}/complete` + (!smsEnabled ? '?skipSms=true' : ''), completion);
 
-            showToast(t('Dashboard.Msg.TripClosed'), 'success');
+            showToast(`${t('Dashboard.Msg.TripClosed')} (${res.data.finalTotal} ${t('Dashboard.Currency')})`, 'success');
             setCloseModalOpen(false);
             setClosingTrip(null);
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -319,16 +310,15 @@ const Dashboard = () => {
     const handleCancelTrip = async () => {
         const row = driverRows.find(r => r.driver.id === selectedDriverId);
         if (!row?.trip) return;
+        if (!window.confirm('تأكيد إلغاء المشوار؟')) return;
 
         setActionLoading(true);
         try {
-            const tripData = { ...row.trip, status: 'Cancelled', customer: null, driver: null, car: null };
-            await api.put(`/Trips/${row.trip.id}` + (!smsEnabled ? '?skipSms=true' : ''), tripData);
+            await api.post(`/Trips/${row.trip.id}/cancel` + (!smsEnabled ? '?skipSms=true' : ''));
             showToast(t('Dashboard.Msg.TripCancelled'), 'success');
             await fetchAll();
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -341,11 +331,10 @@ const Dashboard = () => {
         setActionLoading(true);
         try {
             const res = await api.post(`/Trips/${row.trip.id}/depart` + (!smsEnabled ? '?skipSms=true' : ''));
-            setDepartedTrips(prev => ({ ...prev, [row.trip.id]: new Date() }));
             showToast(res.data.message || t('Dashboard.Msg.DepartSent'), 'success');
-        } catch (err) {
-            const msg = err.response?.data?.message || t('Common.Error');
-            showToast(msg, 'error');
+            await fetchAll();
+        } catch {
+            // The API error message is shown by the global error handler.
         }
         setActionLoading(false);
     };
@@ -409,7 +398,7 @@ const Dashboard = () => {
                                     {row.customer?.phone || '—'}
                                 </td>
                                 <td style={{ textAlign: 'center' }}>{getRate(row.trip)}</td>
-                                <td style={{ textAlign: 'center' }}>{departedTrips[row.trip?.id] ? formatTime(departedTrips[row.trip.id]) : '—'}</td>
+                                <td style={{ textAlign: 'center' }}>{row.trip?.departedAt ? formatTime(row.trip.departedAt) : '—'}</td>
                                 <td style={{ textAlign: 'center' }}>{row.trip ? formatTime(row.trip.endTime) : '—'}</td>
                                 <td style={{ textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {row.trip?.dropoffLocation || row.trip?.pickupLocation || '—'}
@@ -439,11 +428,11 @@ const Dashboard = () => {
                     {t('Dashboard.Btn.NewTrip')}
                 </button>
                 <button className="action-btn action-start" onClick={handleStartTrip}
-                    disabled={actionLoading || !selectedRow?.trip || selectedRow?.trip?.status !== 'Scheduled' || !departedTrips[selectedRow?.trip?.id]}>
+                    disabled={actionLoading || !selectedRow?.trip || selectedRow?.trip?.status !== 'Scheduled' || !selectedRow?.trip?.departedAt}>
                     {t('Dashboard.Btn.Start')}
                 </button>
                 <button className="action-btn action-depart" onClick={handleDepart}
-                    disabled={actionLoading || !selectedRow?.trip || selectedRow?.trip?.status !== 'Scheduled' || !!departedTrips[selectedRow?.trip?.id]}>
+                    disabled={actionLoading || !selectedRow?.trip || selectedRow?.trip?.status !== 'Scheduled' || !!selectedRow?.trip?.departedAt}>
                     {t('Dashboard.Btn.Depart')}
                 </button>
                 <button className="action-btn action-close" onClick={handleOpenCloseModal}
@@ -493,7 +482,7 @@ const Dashboard = () => {
                             </div>
                             <div style={{ background: 'var(--info-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--info-border)' }}>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--primary-dark)' }}>{t('Dashboard.Col.Departure')}</div>
-                                <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{departedTrips[closingTrip.id] ? formatTime(departedTrips[closingTrip.id]) : '—'}</div>
+                                <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{closingTrip.departedAt ? formatTime(closingTrip.departedAt) : '—'}</div>
                             </div>
                             <div style={{ background: 'var(--warning-bg)', borderRadius: '8px', padding: '0.5rem', textAlign: 'center', border: '1px solid var(--warning-lighter)' }}>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--warning-darker)' }}>{t('Dashboard.Modal.EndTime')}</div>

@@ -17,18 +17,35 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+const showError = (message) => {
+    window.dispatchEvent(new CustomEvent('system-error', { detail: message }));
+};
+
 // Detect 401 Unauthorized and Global Errors
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response && error.response.status === 401) {
+        const status = error.response?.status;
+        const data = error.response?.data;
+        const isLogin = error.config?.url?.toLowerCase().includes('/auth/login');
+
+        if (status === 401 && !isLogin) {
+            // Session ended (expired token, password changed, or account removed)
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login';
+        } else if (status === 403 && data?.code === 'MustChangePassword') {
+            window.dispatchEvent(new CustomEvent('must-change-password'));
+        } else if (status === 429) {
+            showError('محاولات كثيرة، حاول مرة أخرى بعد دقيقة.');
         } else {
-            // Global Error Dispatch for Wow Toasts
-            const message = error.response?.data?.message || error.response?.data || error.message || 'Error occurred';
-            window.dispatchEvent(new CustomEvent('system-error', { detail: message }));
+            const message = data?.message
+                || (typeof data === 'string' ? data : null)
+                || (data?.errors ? Object.values(data.errors).flat().join(' ') : null)
+                || data?.title
+                || error.message
+                || 'Error occurred';
+            showError(message);
         }
         return Promise.reject(error);
     }
