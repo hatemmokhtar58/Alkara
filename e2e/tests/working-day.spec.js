@@ -149,7 +149,7 @@ test('a full working day', async ({ page, browser }) => {
     const row = page.locator('tbody tr', { hasText: DRIVER.name });
     await expect(row).toContainText('3,016');
     await row.getByRole('button', { name: 'صرف' }).click();
-    await expect(row).toContainText('مصروف');
+    await expect(row).toContainText('صُرف في'); // paid, with the pay date
     await expect(row.locator('input')).toHaveCount(0);
   });
 
