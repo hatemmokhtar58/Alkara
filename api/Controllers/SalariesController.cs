@@ -200,19 +200,22 @@ namespace api.Controllers
             return NoContent();
         }
 
-        private async Task<List<SalaryRow>> CalculateAsync(int year, int month)
+        private Task<List<SalaryRow>> CalculateAsync(int year, int month) => CalculateAsync(_context, _earnings, year, month);
+
+        /// <summary>Every driver's salary for the month. Shared with the profit report, which passes the earnings it already loaded.</summary>
+        public static async Task<List<SalaryRow>> CalculateAsync(AppDbContext context, DriverEarnings earningsService, int year, int month, EarningsResult? known = null)
         {
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
-            var defaultPercent = await GetDefaultCommissionAsync();
+            var defaultPercent = await GetDefaultCommissionAsync(context);
 
-            var drivers = await _context.Drivers.OrderBy(d => d.Id).ToListAsync();
-            var records = await _context.DriverMonthlySalaries
+            var drivers = await context.Drivers.OrderBy(d => d.Id).ToListAsync();
+            var records = await context.DriverMonthlySalaries
                 .Where(s => s.Year == year && s.Month == month)
                 .ToDictionaryAsync(s => s.DriverId);
 
             // Commission is earned on money actually received from customers this month, wherever the trip fell.
-            var earnings = await _earnings.CalculateAsync();
+            var earnings = known ?? await earningsService.CalculateAsync();
             var collected = earnings.Allocations
                 .Where(a => a.DriverId != null && a.CollectedAt >= startDate && a.CollectedAt < endDate)
                 .GroupBy(a => a.DriverId!.Value)
@@ -221,7 +224,7 @@ namespace api.Controllers
             // If last month's salary was paid before that month ended, what came in after the pay day
             // was not in it, so it is carried into this month.
             var previous = startDate.AddMonths(-1);
-            var paidEarly = (await _context.DriverMonthlySalaries.AsNoTracking()
+            var paidEarly = (await context.DriverMonthlySalaries.AsNoTracking()
                     .Where(s => s.Year == previous.Year && s.Month == previous.Month && s.IsPaid && s.PaidAt != null && s.PaidAt < startDate)
                     .Select(s => new { s.DriverId, PaidAt = s.PaidAt!.Value })
                     .ToListAsync())
@@ -230,7 +233,7 @@ namespace api.Controllers
                 .Where(a => a.DriverId != null && paidEarly.TryGetValue(a.DriverId.Value, out var paidAt) && a.CollectedAt > paidAt && a.CollectedAt < startDate)
                 .GroupBy(a => a.DriverId!.Value)
                 .ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
-            var carriedFuel = (await _context.Expenses.AsNoTracking()
+            var carriedFuel = (await context.Expenses.AsNoTracking()
                     .Where(e => e.DriverId != null && e.Category == "Fuel" && e.Date >= previous && e.Date < startDate)
                     .Select(e => new { DriverId = e.DriverId!.Value, e.Date, e.Amount })
                     .ToListAsync())
@@ -238,14 +241,14 @@ namespace api.Controllers
                 .GroupBy(e => e.DriverId)
                 .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
 
-            var tripCounts = await _context.Trips
+            var tripCounts = await context.Trips
                 .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= startDate && t.EndTime < endDate)
                 .GroupBy(t => t.DriverId)
                 .Select(g => new { DriverId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.DriverId, x => x.Count);
 
             // Fuel paid for the driver's work comes off the income the commission is based on.
-            var fuel = await _context.Expenses
+            var fuel = await context.Expenses
                 .Where(e => e.DriverId != null && e.Category == "Fuel" && e.Date >= startDate && e.Date < endDate)
                 .GroupBy(e => e.DriverId!.Value)
                 .Select(g => new { DriverId = g.Key, Total = g.Sum(e => e.Amount) })

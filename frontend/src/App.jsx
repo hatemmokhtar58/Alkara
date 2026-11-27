@@ -16,6 +16,7 @@ import Statements from './pages/Statements';
 import Salaries from './pages/Salaries';
 import DriverEarnings from './pages/DriverEarnings';
 import DailyReport from './pages/DailyReport';
+import Profit from './pages/Profit';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import SmsLog from './pages/SmsLog';
@@ -50,6 +51,8 @@ const PAGES = [
   { path: '/statement-daily', perm: 'reports', text: 'كشف حساب السائقين', menu: 'reports', group: 'المالية', also: ['/statement-monthly', '/statement-yearly'], element: () => <Statements period="daily" /> },
   { path: '/statement-monthly', perm: 'reports', element: () => <Statements period="monthly" /> },
   { path: '/statement-yearly', perm: 'reports', element: () => <Statements period="yearly" /> },
+  { path: '/profit-monthly', perm: 'reports', text: 'صافي الربح', menu: 'reports', group: 'المالية', also: ['/profit-yearly'], element: () => <Profit period="monthly" /> },
+  { path: '/profit-yearly', perm: 'reports', element: () => <Profit period="yearly" /> },
   { path: '/account-statement', perm: 'wallet', label: 'Sidebar.AccountStatement', menu: 'reports', group: 'المالية', element: () => <AccountStatement /> },
   { path: '/driver-earnings', perm: 'reports', text: 'إيراد السائقين', menu: 'reports', group: 'السائقين', element: () => <DriverEarnings /> },
   { path: '/salaries', perm: 'reports', label: 'Sidebar.Salaries', menu: 'reports', group: 'السائقين', element: () => <Salaries /> },

@@ -22,7 +22,7 @@ public static class Api
 
     public static async Task<int> CreateCarAsync(this HttpClient client, string plate = "ABC")
     {
-        var response = await client.PostAsJsonAsync("/api/Cars", new { plateNumber = plate + Random.Shared.Next(1000, 9999), make = "Toyota", model = "Camry", color = "White", year = 2024 });
+        var response = await client.PostAsJsonAsync("/api/Cars", new { plateNumber = plate + Random.Shared.Next(100000000, 999999999), make = "Toyota", model = "Camry", color = "White", year = 2024 });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
     }

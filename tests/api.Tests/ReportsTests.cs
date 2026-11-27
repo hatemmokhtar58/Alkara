@@ -100,6 +100,42 @@ public class ReportsTests
     }
 
     [Fact]
+    public async Task Profit_IsRevenueLessExpensesLessSalaries_PerMonth()
+    {
+        await using var factory = new AlkaraApiFactory();
+        var admin = await factory.CreateAdminClientAsync();
+        var customer = await admin.CreateCustomerAsync("عميل الربح");
+        var driver = await admin.CreateDriverAsync("سائق الربح", baseSalary: 300);
+        var car = await admin.CreateCarAsync();
+
+        factory.Clock.Now = new DateTime(2026, 5, 10, 10, 0, 0);
+        await admin.RunFixedTripAsync(customer, driver, car, 1000);
+        await AddFuelAsync(admin, driver, 200);
+        factory.Clock.Now = new DateTime(2026, 6, 3, 10, 0, 0);
+        await admin.RunFixedTripAsync(customer, driver, car, 500, paidAmount: 0); // revenue even while unpaid
+
+        // May: 1000 - 200 fuel - salary (300 + 10% of 800) = 420
+        var may = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/profit?period=monthly&year=2026&month=5");
+        var row = Assert.Single(may.GetProperty("months").EnumerateArray());
+        Assert.Equal(1000, row.GetProperty("revenue").GetDecimal());
+        Assert.Equal(200, row.GetProperty("expenses").GetDecimal());
+        Assert.Equal(380, row.GetProperty("salaries").GetDecimal());
+        Assert.False(row.GetProperty("salariesFinal").GetBoolean());
+        Assert.Equal(420, row.GetProperty("net").GetDecimal());
+
+        (await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 5 })).EnsureSuccessStatusCode();
+        may = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/profit?period=monthly&year=2026&month=5");
+        Assert.True(may.GetProperty("months")[0].GetProperty("salariesFinal").GetBoolean());
+
+        // The year: only months with activity so far (May and June). June: 500 - 0 - 300 = 200.
+        var yearly = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/profit?period=yearly&year=2026");
+        Assert.Equal(2, yearly.GetProperty("months").GetArrayLength());
+        Assert.Equal(620, yearly.GetProperty("totals").GetProperty("net").GetDecimal());
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.GetAsync("/api/Reports/profit?period=daily&year=2026&month=5&day=1")).StatusCode);
+    }
+
+    [Fact]
     public async Task Cashbox_AddsCashTripsCollectionsAndDeposits_LessExpenses()
     {
         var (factory, admin, _, _) = await SeedAsync();

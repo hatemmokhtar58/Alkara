@@ -291,6 +291,70 @@ namespace api.Controllers
             });
         }
 
+        // GET: api/Reports/profit?period=monthly&year=2026&month=10 (or period=yearly)
+        // Per month: revenue (value of finished trips) - expenses - drivers' salaries = net.
+        // A month whose salaries are not all paid yet uses the salaries as they stand today.
+        [HttpGet("profit")]
+        public async Task<ActionResult> GetProfit([FromQuery] string? period, [FromQuery] int year, [FromQuery] int? month)
+        {
+            period = (period ?? ReportPeriod.Monthly).ToLowerInvariant();
+            if (period == ReportPeriod.Daily) return BadRequest(new { message = "هذا التقرير شهري أو سنوي فقط." });
+            var range = ReportPeriod.TryCreate(period, year, month, null, out var error);
+            if (range == null) return BadRequest(new { message = error });
+
+            var trips = await _context.Trips.AsNoTracking()
+                .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= range.Start && t.EndTime < range.End)
+                .Select(t => new { EndTime = t.EndTime!.Value, t.FinalTotal })
+                .ToListAsync();
+            var expenses = await _context.Expenses.AsNoTracking()
+                .Where(e => e.Date >= range.Start && e.Date < range.End)
+                .Select(e => new { e.Date, e.Amount })
+                .ToListAsync();
+
+            // Salaries are not counted for months before the business recorded anything, or that have not started.
+            var firstTrip = await _context.Trips.AsNoTracking().MinAsync(t => (DateTime?)t.RequestTime);
+            var firstExpense = await _context.Expenses.AsNoTracking().MinAsync(e => (DateTime?)e.Date);
+            var firstActivity = firstTrip == null ? firstExpense : firstExpense == null || firstTrip < firstExpense ? firstTrip : firstExpense;
+            var now = _clock.Now;
+            var earnings = await _earnings.CalculateAsync();
+
+            var months = new List<object>();
+            decimal totalRevenue = 0, totalExpenses = 0, totalSalaries = 0;
+            for (var start = range.Start; start < range.End; start = start.AddMonths(1))
+            {
+                var end = start.AddMonths(1);
+                if (start > now || firstActivity == null || end <= firstActivity) continue;
+
+                var salaryRows = await SalariesController.CalculateAsync(_context, _earnings, start.Year, start.Month, earnings);
+                var revenue = trips.Where(t => t.EndTime >= start && t.EndTime < end).Sum(t => t.FinalTotal);
+                var spent = expenses.Where(e => e.Date >= start && e.Date < end).Sum(e => e.Amount);
+                var salaries = salaryRows.Sum(r => r.TotalSalary);
+
+                months.Add(new
+                {
+                    year = start.Year,
+                    month = start.Month,
+                    revenue,
+                    expenses = spent,
+                    salaries,
+                    salariesFinal = salaryRows.All(r => r.IsPaid || r.TotalSalary == 0),
+                    net = revenue - spent - salaries
+                });
+                totalRevenue += revenue;
+                totalExpenses += spent;
+                totalSalaries += salaries;
+            }
+
+            return Ok(new
+            {
+                range.Period,
+                range.Start,
+                range.End,
+                months,
+                totals = new { revenue = totalRevenue, expenses = totalExpenses, salaries = totalSalaries, net = totalRevenue - totalExpenses - totalSalaries }
+            });
+        }
+
         private static StatementTotals Sum(IEnumerable<StatementRow> rows)
         {
             var list = rows as ICollection<StatementRow> ?? rows.ToList();
