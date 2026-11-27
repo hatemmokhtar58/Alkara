@@ -95,6 +95,31 @@ public class ReportsTests
     }
 
     [Fact]
+    public async Task Cashbox_LeavesOutCollectionsOfACancelledTrip()
+    {
+        await using var factory = new AlkaraApiFactory();
+        var admin = await factory.CreateAdminClientAsync();
+        var customer = await admin.CreateCustomerAsync("عميل ملغي");
+        var driver = await admin.CreateDriverAsync();
+        var car = await admin.CreateCarAsync();
+
+        factory.Clock.Now = new DateTime(2026, 5, 10, 10, 0, 0);
+        await admin.RunFixedTripAsync(customer, driver, car, 70, "Cash", paidAmount: 0); // old debt of 70
+        var trip = await admin.RunFixedTripAsync(customer, driver, car, 150, "Cash", paidAmount: 100, collectionAmount: 20);
+
+        var before = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=daily&year=2026&month=5&day=10");
+        Assert.Equal(120, before.GetProperty("net").GetDecimal());
+
+        (await admin.PostAsync($"/api/Trips/{trip.GetProperty("id").GetInt32()}/cancel?skipSms=true", null)).EnsureSuccessStatusCode();
+
+        // The customer owes the 70 again, so the cash box must not still count the 20.
+        Assert.Equal(70, await admin.CustomerBalanceAsync(customer));
+        var after = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=daily&year=2026&month=5&day=10");
+        Assert.Equal(0, after.GetProperty("totalCollections").GetDecimal());
+        Assert.Equal(0, after.GetProperty("net").GetDecimal());
+    }
+
+    [Fact]
     public async Task Cashbox_LeavesOutTransferDeposits_ButTheyStillSettleDebt()
     {
         var (factory, admin, _, _) = await SeedAsync();

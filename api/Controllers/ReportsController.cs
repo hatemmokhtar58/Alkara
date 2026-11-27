@@ -42,6 +42,7 @@ namespace api.Controllers
 
             var collections = -await _context.WalletTransactions.AsNoTracking()
                 .Where(w => (w.Type == WalletTypes.CashCollection || w.Type == WalletTypes.CashDeposit) && w.TransactionDate >= start && w.TransactionDate < end)
+                .Where(w => w.Trip == null || w.Trip.Status != TripStatuses.Cancelled) // a cancelled trip's money was reversed
                 .SumAsync(w => w.Amount);
             var expenses = await _context.Expenses.AsNoTracking()
                 .Where(e => e.Date >= start && e.Date < end)
@@ -136,6 +137,7 @@ namespace api.Controllers
 
             var collections = await _context.WalletTransactions.AsNoTracking()
                 .Where(w => (w.Type == WalletTypes.CashCollection || w.Type == WalletTypes.CashDeposit) && w.TransactionDate >= range.Start && w.TransactionDate < range.End)
+                .Where(w => w.Trip == null || w.Trip.Status != TripStatuses.Cancelled) // a cancelled trip's money was reversed
                 .OrderBy(w => w.TransactionDate).ThenBy(w => w.Id)
                 .Select(w => new { w.Id, w.Type, CustomerName = w.Customer.Name, Amount = -w.Amount, w.TransactionDate })
                 .ToListAsync();
