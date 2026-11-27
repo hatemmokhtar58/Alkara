@@ -234,6 +234,9 @@ namespace api.Migrations
                     b.Property<int>("TripsCount")
                         .HasColumnType("int");
 
+                    b.Property<int>("WorkDays")
+                        .HasColumnType("int");
+
                     b.Property<int>("Year")
                         .HasColumnType("int");
 

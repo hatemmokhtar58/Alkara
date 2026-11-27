@@ -3,7 +3,8 @@ namespace api.Models
     /// <summary>
     /// One driver's salary for one month. Allowances and deductions (including advances) are entered
     /// during the month. When the salary is paid, every figure is frozen here so later edits to trips
-    /// or expenses cannot change a salary that was already handed over.
+    /// or expenses cannot change a salary that was already handed over. A salary may be paid before the
+    /// month ends; money received after that day counts toward the next month's commission.
     /// </summary>
     public class DriverMonthlySalary
     {
@@ -15,6 +16,8 @@ namespace api.Models
 
         public decimal Allowances { get; set; }
         public decimal Deductions { get; set; }
+        // Days the driver is paid for; a month counts as 30. Fewer days pay a share of the base salary.
+        public int WorkDays { get; set; } = 30;
         public string? Notes { get; set; }
 
         public bool IsPaid { get; set; }

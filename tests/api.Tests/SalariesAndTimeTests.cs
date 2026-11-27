@@ -72,12 +72,10 @@ public class SalariesAndTimeTests
         var car = await admin.CreateCarAsync();
         await admin.RunFixedTripAsync(customer, driver, car, 1000);
 
-        // A month is paid only once it is over, so money received later in it is not lost.
-        var early = await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 6, driverIds = new[] { driver } });
-        Assert.Equal(HttpStatusCode.BadRequest, early.StatusCode);
-        Assert.False((await SalaryRowAsync(admin, driver, 2026, 6)).GetProperty("isPaid").GetBoolean());
+        // A month that has not started cannot be paid.
+        var future = await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 7, driverIds = new[] { driver } });
+        Assert.Equal(HttpStatusCode.BadRequest, future.StatusCode);
 
-        factory.Clock.Now = new DateTime(2026, 7, 1, 9, 0, 0);
         var pay = await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 6, driverIds = new[] { driver } });
         Assert.Equal(HttpStatusCode.OK, pay.StatusCode);
         var paidRow = await SalaryRowAsync(admin, driver, 2026, 6);
@@ -94,6 +92,52 @@ public class SalariesAndTimeTests
 
         Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsync($"/api/Salaries/{driver}/unpay?month=6&year=2026", null)).StatusCode);
         Assert.Equal(2200, (await SalaryRowAsync(admin, driver, 2026, 6)).GetProperty("totalSalary").GetDecimal());
+    }
+
+    [Fact]
+    public async Task SalaryPaidEarly_PaysForTheDaysWorked_AndCarriesLaterMoneyToNextMonth()
+    {
+        await using var factory = new AlkaraApiFactory();
+        factory.Clock.Now = new DateTime(2026, 6, 10, 12, 0, 0);
+        var admin = await factory.CreateAdminClientAsync();
+        var customer = await admin.CreateCustomerAsync();
+        var driver = await admin.CreateDriverAsync("مسافر", baseSalary: 3000);
+        var car = await admin.CreateCarAsync();
+        await admin.RunFixedTripAsync(customer, driver, car, 1000);
+
+        // Leaving on the 20th: paid for 20 days out of 30.
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=6&year=2026", new { workDays = 31 })).StatusCode);
+        (await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=6&year=2026", new { workDays = 20 })).EnsureSuccessStatusCode();
+        var row = await SalaryRowAsync(admin, driver, 2026, 6);
+        Assert.Equal(20, row.GetProperty("workDays").GetInt32());
+        Assert.Equal(2000, row.GetProperty("basePay").GetDecimal());
+        Assert.Equal(2100, row.GetProperty("totalSalary").GetDecimal());
+
+        factory.Clock.Now = new DateTime(2026, 6, 20, 12, 0, 0);
+        (await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 6, driverIds = new[] { driver } })).EnsureSuccessStatusCode();
+        row = await SalaryRowAsync(admin, driver, 2026, 6);
+        Assert.True(row.GetProperty("isPaid").GetBoolean());
+        Assert.Equal(new DateTime(2026, 6, 20), row.GetProperty("paidAt").GetDateTimeOffset().Date);
+        Assert.Equal(2100, row.GetProperty("totalSalary").GetDecimal());
+
+        // Money and fuel after the pay day are not in June's paid salary; they move to July.
+        factory.Clock.Now = new DateTime(2026, 6, 25, 12, 0, 0);
+        await admin.RunFixedTripAsync(customer, driver, car, 500);
+        await AddFuelAsync(admin, driver, car, 100);
+        Assert.Equal(2100, (await SalaryRowAsync(admin, driver, 2026, 6)).GetProperty("totalSalary").GetDecimal());
+
+        var july = await SalaryRowAsync(admin, driver, 2026, 7);
+        Assert.Equal(500, july.GetProperty("totalIncome").GetDecimal());
+        Assert.Equal(500, july.GetProperty("carriedIncome").GetDecimal());
+        Assert.Equal(100, july.GetProperty("totalExpenses").GetDecimal());
+        Assert.Equal(40, july.GetProperty("commission").GetDecimal());
+        Assert.Equal(30, july.GetProperty("workDays").GetInt32());
+        Assert.Equal(3040, july.GetProperty("totalSalary").GetDecimal());
+
+        // Once July is paid, June cannot be reopened on its own (its late money is already in July).
+        factory.Clock.Now = new DateTime(2026, 7, 5, 12, 0, 0);
+        (await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 7, driverIds = new[] { driver } })).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync($"/api/Salaries/{driver}/unpay?month=6&year=2026", null)).StatusCode);
     }
 
     [Fact]

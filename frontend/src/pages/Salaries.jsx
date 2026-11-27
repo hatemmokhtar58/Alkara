@@ -41,6 +41,7 @@ export default function Salaries() {
           commissionPercent: d.usesDefaultCommission ? '' : d.commissionPercent,
           allowances: d.allowances || '',
           deductions: d.deductions || '',
+          workDays: d.workDays ?? 30,
           notes: d.notes || ''
         };
       });
@@ -66,6 +67,7 @@ export default function Salaries() {
         useDefaultCommission: e.commissionPercent === '',
         allowances: parseFloat(e.allowances) || 0,
         deductions: parseFloat(e.deductions) || 0,
+        workDays: e.workDays === '' ? 30 : Math.min(30, Math.max(0, parseInt(e.workDays) || 0)),
         notes: e.notes || null
       });
       fetchSalaries();
@@ -171,7 +173,7 @@ export default function Salaries() {
           </div>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '8px' }}>
-          العمولة = النسبة × (المحصّل من العملاء خلال الشهر − البنزين). المحصّل هو المبالغ التي دُفعت فعلاً عن مشاوير السائق، ويُوزَّع أي تحويل على أقدم المشاوير أولاً. اضغط على اسم السائق لعرض التفاصيل. ترك خانة النسبة فارغة يعني استخدام النسبة الافتراضية. تُحفظ التعديلات تلقائياً عند مغادرة الخانة.
+          الراتب المستحق = الراتب الشهري × عدد الأيام ÷ 30. يمكن صرف الراتب قبل نهاية الشهر، وما يُحصَّل بعد تاريخ الصرف يُرحَّل إلى عمولة الشهر التالي. العمولة = النسبة × (المحصّل من العملاء خلال الشهر − البنزين). المحصّل هو المبالغ التي دُفعت فعلاً عن مشاوير السائق، ويُوزَّع أي تحويل على أقدم المشاوير أولاً. اضغط على اسم السائق لعرض التفاصيل. ترك خانة النسبة فارغة يعني استخدام النسبة الافتراضية. تُحفظ التعديلات تلقائياً عند مغادرة الخانة.
         </div>
       </div>
 
@@ -185,6 +187,7 @@ export default function Salaries() {
                 <th style={c}>#</th>
                 <th style={c}>السائق</th>
                 <th style={c}>راتب</th>
+                <th style={c}>أيام</th>
                 <th style={c}>المحصّل</th>
                 <th style={c}>بنزين</th>
                 <th style={c}>صافي</th>
@@ -209,7 +212,19 @@ export default function Salaries() {
                     {d.driverName}
                   </td>
                   {numberCell(d, 'baseSalary')}
-                  <td style={c}>{fmt(d.totalIncome)}</td>
+                  <td style={c}>
+                    {d.isPaid ? d.workDays : (
+                      <input type="number" min="0" max="30" value={edits[d.driverId]?.workDays ?? ''} placeholder="30"
+                        onChange={(e) => setField(d.driverId, 'workDays', e.target.value)}
+                        onBlur={() => saveDriver(d.driverId)}
+                        style={inputStyle} />
+                    )}
+                    {d.workDays < 30 && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>المستحق {fmt(d.basePay)}</div>}
+                  </td>
+                  <td style={c}>
+                    {fmt(d.totalIncome)}
+                    {d.carriedIncome > 0 && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>منها {fmt(d.carriedIncome)} مرحّلة من الشهر السابق</div>}
+                  </td>
                   <td style={{ ...c, color: 'var(--danger-color)' }}>{fmt(d.totalExpenses)}</td>
                   <td style={c}>{fmt(d.netIncome)}</td>
                   {d.isPaid ? <td style={c}>{fmt(d.commissionPercent)}</td> : numberCell(d, 'commissionPercent', String(data?.defaultCommissionPercent ?? ''))}
@@ -220,19 +235,19 @@ export default function Salaries() {
                   <td style={c} className="no-print">
                     {d.isPaid ? (
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                        <span className="badge badge-success">مصروف</span>
+                        <span className="badge badge-success">صُرف في {fmtDate(d.paidAt)}</span>
                         {isAdmin && <button className="btn" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={() => unpay(d.driverId)}>فتح</button>}
                       </div>
                     ) : canPay ? (
                       <button className="btn btn-success" style={{ padding: '3px 8px', fontSize: '12px' }} onClick={() => pay([d.driverId])}>صرف</button>
                     ) : (
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>يُصرف بعد نهاية الشهر</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>الشهر لم يبدأ بعد</span>
                     )}
                   </td>
                 </tr>
                 {open[d.driverId] && (
                   <tr>
-                    <td style={{ ...c, background: 'var(--gray-100)', padding: '6px 12px' }} colSpan="12">
+                    <td style={{ ...c, background: 'var(--gray-100)', padding: '6px 12px' }} colSpan="13">
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                         <thead>
                           <tr>
@@ -267,7 +282,7 @@ export default function Salaries() {
                 );
               })}
               {drivers.length === 0 && (
-                <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="12">لا توجد بيانات</td></tr>
+                <tr><td style={{ ...c, padding: '2rem', color: 'var(--gray-400)' }} colSpan="13">لا توجد بيانات</td></tr>
               )}
             </tbody>
             {drivers.length > 0 && totals && (
@@ -275,6 +290,7 @@ export default function Salaries() {
                 <tr style={sub}>
                   <td style={{ ...c, border: 'none' }} colSpan="2">مجموع كلي</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalBaseSalary)}</td>
+                  <td style={{ ...c, border: 'none' }}></td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalIncome)}</td>
                   <td style={{ ...c, border: 'none', color: '#f87171' }}>{fmt(totals.totalExpenses)}</td>
                   <td style={{ ...c, border: 'none' }}>{fmt(totals.totalNetIncome)}</td>

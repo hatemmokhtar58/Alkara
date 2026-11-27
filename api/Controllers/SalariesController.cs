@@ -13,6 +13,7 @@ namespace api.Controllers
     {
         public const string DefaultCommissionKey = "Salaries.DefaultCommissionPercent";
         public const decimal FallbackCommissionPercent = 10;
+        public const int MonthDays = 30;
 
         private readonly AppDbContext _context;
         private readonly IClock _clock;
@@ -33,6 +34,8 @@ namespace api.Controllers
             public bool UseDefaultCommission { get; set; }
             public decimal Allowances { get; set; }
             public decimal Deductions { get; set; }
+            // Days the driver is paid for this month, out of 30. Empty keeps the current value.
+            public int? WorkDays { get; set; }
             public string? Notes { get; set; }
         }
 
@@ -53,7 +56,8 @@ namespace api.Controllers
             int DriverId, string DriverName, decimal BaseSalary, decimal TotalIncome, decimal TotalExpenses,
             decimal NetIncome, decimal CommissionPercent, bool UsesDefaultCommission, decimal Commission,
             decimal Allowances, decimal Deductions, decimal TotalSalary, int TripsCount,
-            string? Notes, bool IsPaid, DateTime? PaidAt);
+            string? Notes, bool IsPaid, DateTime? PaidAt,
+            int WorkDays, decimal BasePay, decimal CarriedIncome);
 
         // GET: api/Salaries?month=5&year=2026
         [HttpGet]
@@ -75,11 +79,11 @@ namespace api.Controllers
                 month = targetMonth,
                 year = targetYear,
                 defaultCommissionPercent = defaultPercent,
-                canPay = MonthHasEnded(targetYear, targetMonth),
+                canPay = MonthHasStarted(targetYear, targetMonth),
                 drivers = rows,
                 totals = new
                 {
-                    totalBaseSalary = rows.Sum(r => r.BaseSalary),
+                    totalBaseSalary = rows.Sum(r => r.BasePay),
                     totalIncome = rows.Sum(r => r.TotalIncome),
                     totalExpenses = rows.Sum(r => r.TotalExpenses),
                     totalNetIncome = rows.Sum(r => r.NetIncome),
@@ -102,6 +106,10 @@ namespace api.Controllers
                 return BadRequest(new { message = "المبالغ لا يمكن أن تكون بالسالب." });
             if (request.CommissionPercent is < 0 or > 100)
                 return BadRequest(new { message = "النسبة يجب أن تكون بين 0 و 100." });
+            if (request.WorkDays is < 0 or > MonthDays)
+                return BadRequest(new { message = "عدد الأيام يجب أن يكون بين 0 و 30." });
+            if (month < 1 || month > 12 || year < 2000 || year > 2100)
+                return BadRequest(new { message = "الشهر أو السنة غير صالحة." });
 
             var record = await GetOrCreateMonthAsync(driverId, year, month);
             if (record.IsPaid)
@@ -113,6 +121,7 @@ namespace api.Controllers
 
             record.Allowances = request.Allowances;
             record.Deductions = request.Deductions;
+            record.WorkDays = request.WorkDays ?? record.WorkDays;
             record.Notes = request.Notes;
 
             await _context.SaveChangesAsync();
@@ -143,9 +152,10 @@ namespace api.Controllers
         {
             if (request.Month < 1 || request.Month > 12 || request.Year < 2000 || request.Year > 2100)
                 return BadRequest(new { message = "الشهر أو السنة غير صالحة." });
-            // Money received later in the month still belongs to it, so a month is paid only once it is over.
-            if (!MonthHasEnded(request.Year, request.Month))
-                return BadRequest(new { message = "لا يمكن صرف راتب شهر لم ينتهِ بعد." });
+            // A salary may be paid before the month ends (a driver leaving early, travelling...).
+            // Money received after the pay day then counts toward the next month, see CalculateAsync.
+            if (!MonthHasStarted(request.Year, request.Month))
+                return BadRequest(new { message = "لا يمكن صرف راتب شهر لم يبدأ بعد." });
 
             var rows = await CalculateAsync(request.Year, request.Month);
             var toPay = rows.Where(r => !r.IsPaid && (request.DriverIds == null || request.DriverIds.Count == 0 || request.DriverIds.Contains(r.DriverId))).ToList();
@@ -178,6 +188,11 @@ namespace api.Controllers
             var record = await _context.DriverMonthlySalaries.FirstOrDefaultAsync(s => s.DriverId == driverId && s.Year == year && s.Month == month);
             if (record == null || !record.IsPaid) return BadRequest(new { message = "هذا الراتب غير مصروف." });
 
+            // The next month may already include money carried over from this one.
+            var next = new DateTime(year, month, 1).AddMonths(1);
+            if (await _context.DriverMonthlySalaries.AnyAsync(s => s.DriverId == driverId && s.Year == next.Year && s.Month == next.Month && s.IsPaid))
+                return BadRequest(new { message = "راتب الشهر التالي مصروف. افتحه أولاً ثم افتح هذا الشهر." });
+
             record.IsPaid = false;
             record.PaidAt = null;
             record.PaidByUserId = null;
@@ -203,6 +218,26 @@ namespace api.Controllers
                 .GroupBy(a => a.DriverId!.Value)
                 .ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
 
+            // If last month's salary was paid before that month ended, what came in after the pay day
+            // was not in it, so it is carried into this month.
+            var previous = startDate.AddMonths(-1);
+            var paidEarly = (await _context.DriverMonthlySalaries.AsNoTracking()
+                    .Where(s => s.Year == previous.Year && s.Month == previous.Month && s.IsPaid && s.PaidAt != null && s.PaidAt < startDate)
+                    .Select(s => new { s.DriverId, PaidAt = s.PaidAt!.Value })
+                    .ToListAsync())
+                .ToDictionary(s => s.DriverId, s => s.PaidAt);
+            var carriedIncome = earnings.Allocations
+                .Where(a => a.DriverId != null && paidEarly.TryGetValue(a.DriverId.Value, out var paidAt) && a.CollectedAt > paidAt && a.CollectedAt < startDate)
+                .GroupBy(a => a.DriverId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
+            var carriedFuel = (await _context.Expenses.AsNoTracking()
+                    .Where(e => e.DriverId != null && e.Category == "Fuel" && e.Date >= previous && e.Date < startDate)
+                    .Select(e => new { DriverId = e.DriverId!.Value, e.Date, e.Amount })
+                    .ToListAsync())
+                .Where(e => paidEarly.TryGetValue(e.DriverId, out var paidAt) && e.Date > paidAt)
+                .GroupBy(e => e.DriverId)
+                .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+
             var tripCounts = await _context.Trips
                 .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= startDate && t.EndTime < endDate)
                 .GroupBy(t => t.DriverId)
@@ -224,21 +259,26 @@ namespace api.Controllers
                 {
                     return new SalaryRow(driver.Id, driver.Name, record.BaseSalary, record.TotalIncome, record.TotalExpenses,
                         record.TotalIncome - record.TotalExpenses, record.CommissionPercent, false, record.Commission,
-                        record.Allowances, record.Deductions, record.Total, record.TripsCount, record.Notes, true, record.PaidAt);
+                        record.Allowances, record.Deductions, record.Total, record.TripsCount, record.Notes, true, record.PaidAt,
+                        record.WorkDays, BasePayFor(record.BaseSalary, record.WorkDays), 0);
                 }
 
-                var totalIncome = collected.GetValueOrDefault(driver.Id);
-                var totalExpenses = fuel.GetValueOrDefault(driver.Id);
+                var carried = carriedIncome.GetValueOrDefault(driver.Id);
+                var totalIncome = collected.GetValueOrDefault(driver.Id) + carried;
+                var totalExpenses = fuel.GetValueOrDefault(driver.Id) + carriedFuel.GetValueOrDefault(driver.Id);
                 var netIncome = totalIncome - totalExpenses;
                 var percent = driver.CommissionPercent ?? defaultPercent;
                 var commission = CommissionOn(netIncome, percent);
                 var allowances = record?.Allowances ?? 0;
                 var deductions = record?.Deductions ?? 0;
-                var total = driver.BaseSalary + commission + allowances - deductions;
+                var workDays = record?.WorkDays ?? MonthDays;
+                var basePay = BasePayFor(driver.BaseSalary, workDays);
+                var total = basePay + commission + allowances - deductions;
 
                 return new SalaryRow(driver.Id, driver.Name, driver.BaseSalary, totalIncome, totalExpenses, netIncome,
                     percent, driver.CommissionPercent == null, commission, allowances, deductions, total,
-                    tripCounts.GetValueOrDefault(driver.Id), record?.Notes, false, null);
+                    tripCounts.GetValueOrDefault(driver.Id), record?.Notes, false, null,
+                    workDays, basePay, carried);
             }).ToList();
         }
 
@@ -253,7 +293,11 @@ namespace api.Controllers
             return record;
         }
 
-        private bool MonthHasEnded(int year, int month) => _clock.Now >= new DateTime(year, month, 1).AddMonths(1);
+        private bool MonthHasStarted(int year, int month) => _clock.Now >= new DateTime(year, month, 1);
+
+        /// <summary>The share of the monthly base salary for the days worked; a month counts as 30 days.</summary>
+        public static decimal BasePayFor(decimal baseSalary, int workDays) =>
+            Math.Round(baseSalary * Math.Clamp(workDays, 0, MonthDays) / MonthDays, 2, MidpointRounding.AwayFromZero);
 
         public static decimal CommissionOn(decimal netIncome, decimal percent) =>
             netIncome > 0 ? Math.Round(netIncome * percent / 100m, 2, MidpointRounding.AwayFromZero) : 0;
