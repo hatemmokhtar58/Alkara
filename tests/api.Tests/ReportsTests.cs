@@ -60,6 +60,8 @@ public class ReportsTests
         Assert.Equal(200, totals.GetProperty("nonCash").GetDecimal());
         Assert.Equal(30, totals.GetProperty("fuel").GetDecimal());
         Assert.Equal(50, totals.GetProperty("debt").GetDecimal());
+        // The 50 left unpaid that morning was settled later by the 20 collected and the 40 deposit.
+        Assert.Equal(0, totals.GetProperty("remaining").GetDecimal());
 
         // A trip finished at 10:30pm Saudi time belongs to the 9th
         var previous = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/statement?period=daily&year=2026&month=5&day=9");
@@ -73,6 +75,28 @@ public class ReportsTests
         Assert.Equal(430, yearly.GetProperty("totals").GetProperty("finalTotal").GetDecimal());
         var otherYear = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/statement?period=yearly&year=2025");
         Assert.Equal(0, otherYear.GetProperty("drivers").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Statement_ShowsAnHourlyTripsFareForItsDuration_AndWhatIsStillOwed()
+    {
+        await using var factory = new AlkaraApiFactory();
+        var admin = await factory.CreateAdminClientAsync();
+        var customer = await admin.CreateCustomerAsync("عميل الساعة");
+        var driver = await admin.CreateDriverAsync();
+        var car = await admin.CreateCarAsync();
+
+        factory.Clock.Now = new DateTime(2026, 5, 10, 9, 0, 0);
+        var tripId = await admin.CreateTripAsync(customer, driver, car, "Hourly", 60);
+        (await admin.StartTripAsync(tripId)).EnsureSuccessStatusCode();
+        factory.Clock.Advance(TimeSpan.FromHours(3));
+        (await admin.CompleteTripAsync(tripId, new { pricingType = "Hourly", hourlyRate = 60, discountType = "Amount", discountValue = 30, paymentMethod = "Cash", paidAmount = 100 })).EnsureSuccessStatusCode();
+
+        var totals = (await admin.GetFromJsonAsync<JsonElement>("/api/Reports/statement?period=daily&year=2026&month=5&day=10")).GetProperty("totals");
+        Assert.Equal(180, totals.GetProperty("baseFare").GetDecimal()); // 3 hours at 60, not the hourly rate
+        Assert.Equal(150, totals.GetProperty("finalTotal").GetDecimal());
+        Assert.Equal(50, totals.GetProperty("debt").GetDecimal());
+        Assert.Equal(50, totals.GetProperty("remaining").GetDecimal());
     }
 
     [Fact]

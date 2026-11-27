@@ -136,8 +136,8 @@ test('a full working day', async ({ page, browser }) => {
 
   await test.step('daily statement and cash box add up', async () => {
     await page.goto('/statement-daily');
-    // total, fare, value, cash box, transfers, fuel, debt
-    await expect(page.locator('tfoot tr td')).toHaveText(['الإجمالي', '200', '200', '150', '0', '40', '50', '', '']);
+    // total, fare, value, cash box, transfers, fuel, unpaid when the trip ended, still owed now (collected since)
+    await expect(page.locator('tfoot tr td')).toHaveText(['الإجمالي', '200', '200', '150', '0', '40', '50', '0', '', '']);
 
     await page.goto('/daily-report');
     // 150 cash trip + 50 collected - 40 fuel

@@ -6,7 +6,7 @@ import PageTabs from '../components/PageTabs';
 import { usePeriod, periodQuery } from '../components/period';
 
 const CATEGORY_LABELS = { Fuel: 'بنزين', Oil: 'زيت', Wash: 'غسيل', Maintenance: 'صيانة', Other: 'أخرى' };
-const COLUMNS = ['baseFare', 'finalTotal', 'cash', 'nonCash', 'fuel', 'debt'];
+const COLUMNS = ['baseFare', 'finalTotal', 'cash', 'nonCash', 'fuel', 'debt', 'remaining'];
 
 // Completed trips and expenses for the period, grouped by driver. The server does the math.
 const Statements = ({ period = 'daily' }) => {
@@ -35,7 +35,7 @@ const Statements = ({ period = 'daily' }) => {
     const titles = { daily: 'كشف حساب السائقين - يومي', monthly: 'كشف حساب السائقين - شهري', yearly: 'كشف حساب السائقين - سنوي' };
     const groups = report?.drivers || [];
     const totals = report?.totals;
-    const COLS = 10;
+    const COLS = 11;
 
     const c = { border: '1px solid var(--border-color)', padding: '8px 12px', textAlign: 'center' };
     const cR = { ...c, textAlign: 'right' };
@@ -68,7 +68,8 @@ const Statements = ({ period = 'daily' }) => {
                             <th style={c}>مدفوع كاش</th>
                             <th style={c}>مدفوع تحويل / رصيد</th>
                             <th style={c}>بنزين</th>
-                            <th style={c}>دين على العميل</th>
+                            <th style={c}>غير مدفوع عند إنهاء المشوار</th>
+                            <th style={c}>المتبقي على العميل الآن</th>
                             <th style={c}>الوقت</th>
                             <th style={c}>العميل</th>
                         </tr>
@@ -86,6 +87,7 @@ const Statements = ({ period = 'daily' }) => {
                                         <td style={c}>{n(r.nonCash)}</td>
                                         <td style={c}>0</td>
                                         <td style={c}>{n(r.debt)}</td>
+                                        <td style={{ ...c, ...(r.remaining > 0 ? { color: 'var(--danger-color)', fontWeight: 700 } : {}) }}>{n(r.remaining)}</td>
                                         <td style={{ ...c, whiteSpace: 'nowrap', fontSize: '0.85rem' }}>{fmtTime(r.time)}</td>
                                         <td style={cR}>{r.customerName || '-'}</td>
                                     </tr>
@@ -98,6 +100,7 @@ const Statements = ({ period = 'daily' }) => {
                                         <td style={c}></td>
                                         <td style={c}></td>
                                         <td style={{ ...c, color: 'var(--danger-color)' }}>{n(r.fuel)}</td>
+                                        <td style={c}></td>
                                         <td style={c}></td>
                                         <td style={{ ...c, whiteSpace: 'nowrap', fontSize: '0.85rem' }}>{fmtTime(r.time)}</td>
                                         <td style={cR}>{CATEGORY_LABELS[r.category] || r.category}</td>

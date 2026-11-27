@@ -64,12 +64,14 @@ namespace api.Controllers
             });
         }
 
-        public record StatementRow(string Kind, int Id, DateTime Time, decimal BaseFare, decimal FinalTotal, decimal Cash, decimal NonCash, decimal Fuel, decimal Debt, string? CustomerName, string? Category);
-        public record StatementTotals(decimal BaseFare, decimal FinalTotal, decimal Cash, decimal NonCash, decimal Fuel, decimal Debt);
+        public record StatementRow(string Kind, int Id, DateTime Time, decimal BaseFare, decimal FinalTotal, decimal Cash, decimal NonCash, decimal Fuel, decimal Debt, decimal Remaining, string? CustomerName, string? Category);
+        public record StatementTotals(decimal BaseFare, decimal FinalTotal, decimal Cash, decimal NonCash, decimal Fuel, decimal Debt, decimal Remaining);
         public record StatementDriver(int? DriverId, string DriverName, List<StatementRow> Rows, StatementTotals Totals);
 
         // GET: api/Reports/statement?period=daily&year=2026&month=10&day=2
         // Completed trips and expenses in the period, grouped by driver.
+        // Debt is what was left unpaid when the trip ended (so a day's row always adds up);
+        // Remaining is what the customer still owes on that trip today.
         [HttpGet("statement")]
         public async Task<ActionResult> GetStatement([FromQuery] string? period, [FromQuery] int year, [FromQuery] int? month, [FromQuery] int? day)
         {
@@ -82,9 +84,14 @@ namespace api.Controllers
                 {
                     t.Id, t.DriverId, DriverName = t.Driver != null ? t.Driver.Name : null,
                     CustomerName = t.Customer != null ? t.Customer.Name : null,
-                    EndTime = t.EndTime!.Value, t.FixedPrice, t.HourlyRate, t.FinalTotal, t.PaidAmount, t.PaymentMethod
+                    t.StartTime, EndTime = t.EndTime!.Value, t.PricingType, t.FixedPrice, t.HourlyRate, t.FinalTotal, t.PaidAmount, t.PaymentMethod
                 })
                 .ToListAsync();
+
+            var remaining = (await _earnings.CalculateAsync()).Outstanding
+                .Where(o => o.TripId != null)
+                .GroupBy(o => o.TripId!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(o => o.Remaining));
 
             var expenses = await _context.Expenses.AsNoTracking()
                 .Where(e => e.Date >= range.Start && e.Date < range.End)
@@ -94,12 +101,15 @@ namespace api.Controllers
             var rows = trips.Select(t =>
             {
                 var isCash = t.PaymentMethod == PaymentMethods.Cash;
-                var baseFare = t.FixedPrice is > 0 ? t.FixedPrice.Value : t.HourlyRate is > 0 ? t.HourlyRate.Value : t.FinalTotal;
+                // The fare before discount and extras; for an hourly trip that is the rate times its duration, not the rate.
+                var baseFare = t.PricingType is PricingTypes.Hourly or PricingTypes.Fixed
+                    ? TripPricing.Calculate(t.PricingType, t.HourlyRate, t.FixedPrice, t.StartTime, t.EndTime, DiscountTypes.None, 0, 0).BasePrice
+                    : t.FinalTotal;
                 return (DriverId: (int?)t.DriverId, t.DriverName, Row: new StatementRow("trip", t.Id, t.EndTime, baseFare, t.FinalTotal,
-                    isCash ? t.PaidAmount : 0, isCash ? 0 : t.PaidAmount, 0, Math.Max(0, t.FinalTotal - t.PaidAmount), t.CustomerName, null));
+                    isCash ? t.PaidAmount : 0, isCash ? 0 : t.PaidAmount, 0, Math.Max(0, t.FinalTotal - t.PaidAmount), remaining.GetValueOrDefault(t.Id), t.CustomerName, null));
             })
             .Concat(expenses.Select(e => (DriverId: e.DriverId, e.DriverName,
-                Row: new StatementRow("expense", e.Id, e.Date, 0, 0, 0, 0, e.Amount, 0, null, e.Category))));
+                Row: new StatementRow("expense", e.Id, e.Date, 0, 0, 0, 0, e.Amount, 0, 0, null, e.Category))));
 
             var drivers = rows
                 .GroupBy(r => r.DriverId)
@@ -248,7 +258,7 @@ namespace api.Controllers
         {
             var list = rows as ICollection<StatementRow> ?? rows.ToList();
             return new StatementTotals(list.Sum(r => r.BaseFare), list.Sum(r => r.FinalTotal), list.Sum(r => r.Cash),
-                list.Sum(r => r.NonCash), list.Sum(r => r.Fuel), list.Sum(r => r.Debt));
+                list.Sum(r => r.NonCash), list.Sum(r => r.Fuel), list.Sum(r => r.Debt), list.Sum(r => r.Remaining));
         }
     }
 }
