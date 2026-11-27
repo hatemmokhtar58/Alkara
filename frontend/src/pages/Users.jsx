@@ -24,7 +24,8 @@ const Users = () => {
         { key: 'fleet', icon: '🏢' },
         { key: 'expenses', icon: '💰' },
         { key: 'wallet', icon: '💳' },
-        { key: 'reports', icon: '📈' }
+        { key: 'reports', icon: '📈' },
+        { key: 'corrections', icon: '🛠️' }
     ];
 
     useEffect(() => {

@@ -8,8 +8,10 @@ namespace api.Auth
         public const string Expenses = "expenses";
         public const string Wallet = "wallet";
         public const string Reports = "reports";
+        // Removing an expense or a wallet deposit entered by mistake. Admins always can; they grant it to others.
+        public const string Corrections = "corrections";
 
-        public static readonly string[] All = { Trips, Fleet, Expenses, Wallet, Reports };
+        public static readonly string[] All = { Trips, Fleet, Expenses, Wallet, Reports, Corrections };
 
         public const string AdminRole = "Admin";
         public const string EmployeeRole = "Employee";

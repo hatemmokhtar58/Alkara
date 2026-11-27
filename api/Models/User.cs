@@ -14,7 +14,7 @@ namespace api.Models
         [Required]
         public string Role { get; set; } = "Employee"; // Admin or Employee
 
-        public string Permissions { get; set; } = string.Empty; // Comma separated keys: trips,fleet,expenses,wallet,reports
+        public string Permissions { get; set; } = string.Empty; // Comma separated keys: trips,fleet,expenses,wallet,reports,corrections
 
         // Set when an admin creates the account or resets its password; the user must pick their own on next login.
         public bool MustChangePassword { get; set; }

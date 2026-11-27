@@ -74,5 +74,18 @@ namespace api.Controllers
             return CreatedAtAction(nameof(GetExpenses), new { id = expense.Id },
                 new { expense.Id, expense.Category, expense.Amount, expense.Note, expense.Date, expense.DriverId, expense.CarId });
         }
+
+        // DELETE: api/Expenses/5 - removes an expense entered by mistake (kept in the audit log)
+        [RequirePermission(Permissions.Corrections)]
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteExpense(int id)
+        {
+            var expense = await _context.Expenses.FindAsync(id);
+            if (expense == null) return NotFound(new { message = "المصروف غير موجود." });
+
+            _context.Expenses.Remove(expense);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
     }
 }

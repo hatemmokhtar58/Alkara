@@ -4,6 +4,9 @@ import PremiumSelect from '../components/PremiumSelect';
 import { useTranslation } from 'react-i18next';
 
 import { useToast } from '../context/ToastContext';
+import { canCorrect } from '../utils/permissions';
+
+const DEPOSIT_TYPES = ['CashDeposit', 'TransferDeposit'];
 
 const Wallet = () => {
     const { t, i18n } = useTranslation();
@@ -17,6 +20,7 @@ const Wallet = () => {
     const [depositAmount, setDepositAmount] = useState('');
     const [depositNote, setDepositNote] = useState('');
     const [depositMethod, setDepositMethod] = useState('Cash');
+    const allowDelete = canCorrect();
 
     const fetchCustomers = useCallback(() => {
         api.get('/Customers').then(res => setCustomers(res.data)).catch(console.error);
@@ -56,6 +60,18 @@ const Wallet = () => {
         }
     };
 
+
+    const deleteDeposit = async (entry) => {
+        if (!window.confirm(`هل تريد حذف هذا الإيداع (${Math.abs(entry.amount)})؟ سيتغير رصيد العميل ويبقى الحذف مسجلاً في سجل التعديلات.`)) return;
+        try {
+            await api.delete(`/Wallet/transactions/${entry.id}`);
+            showToast('تم حذف الإيداع', 'success');
+            fetchWalletInfo();
+            fetchCustomers();
+        } catch {
+            // shown by the global error handler
+        }
+    };
 
     const formatDate = (timeStr) => {
         if (!timeStr) return '-';
@@ -174,6 +190,7 @@ const Wallet = () => {
                                 <th>{t('Wallet.Details')}</th>
                                 <th>{t('Wallet.TripId')}</th>
                                 <th>بواسطة</th>
+                                {allowDelete && <th></th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -194,10 +211,11 @@ const Wallet = () => {
                                         <td>{tData.description}</td>
                                         <td>{tData.tripId ? `#${tData.tripId}` : '-'}</td>
                                         <td style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>{tData.createdBy || '-'}</td>
+                                        {allowDelete && <td>{DEPOSIT_TYPES.includes(tData.type) && <button type="button" className="btn btn-danger" style={{ padding: '3px 10px', fontSize: '12px' }} onClick={() => deleteDeposit(tData)}>حذف</button>}</td>}
                                     </tr>
                                 );
                             })}
-                            {walletData.transactions.length === 0 && <tr><td colSpan="7" style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
+                            {walletData.transactions.length === 0 && <tr><td colSpan={allowDelete ? 8 : 7} style={{textAlign:'center'}}>{t('Wallet.Empty')}</td></tr>}
                         </tbody>
                     </table>
                 </>

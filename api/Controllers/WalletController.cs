@@ -105,6 +105,27 @@ namespace api.Controllers
 
             return Ok(new { success = true, newBalance = await _wallet.GetBalanceAsync(customer.Id) });
         }
+
+        // DELETE: api/Wallet/transactions/5 - removes a deposit entered by mistake (kept in the audit log).
+        // Only deposits recorded from the wallet page; a trip's money is corrected by cancelling the trip.
+        [RequirePermission(Permissions.Corrections)]
+        [HttpDelete("transactions/{id:int}")]
+        public async Task<IActionResult> DeleteDeposit(int id)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            var entry = await _context.WalletTransactions.FirstOrDefaultAsync(w => w.Id == id);
+            if (entry == null) return NotFound(new { message = "الحركة غير موجودة." });
+            if (entry.Type != WalletTypes.CashDeposit && entry.Type != WalletTypes.TransferDeposit)
+                return BadRequest(new { message = "لا يمكن حذف إلا الإيداعات المسجلة من صفحة المحفظة. حركات المشوار تُصحَّح بإلغاء المشوار." });
+
+            await _wallet.LockCustomerAsync(entry.CustomerId);
+            _context.WalletTransactions.Remove(entry);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Ok(new { success = true, newBalance = await _wallet.GetBalanceAsync(entry.CustomerId) });
+        }
     }
 
     public class DepositRequest

@@ -418,6 +418,7 @@ const resources = {
             "expenses": "إدارة المصروفات",
             "wallet": "المحفظة المالية",
             "reports": "كشوف الحسابات",
+            "corrections": "تصحيح الأخطاء المالية (حذف مصروف أو إيداع)",
             "users": "إدارة المستخدمين"
         },
         "Actions": "الإجراءات"
@@ -857,6 +858,7 @@ const resources = {
             "expenses": "Manage Expenses",
             "wallet": "Financial Wallet",
             "reports": "Account Statements",
+            "corrections": "Financial corrections (delete an expense or deposit)",
             "users": "User Management"
         },
         "Actions": "Actions"
