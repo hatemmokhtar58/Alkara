@@ -72,14 +72,20 @@ public class SalariesAndTimeTests
         var car = await admin.CreateCarAsync();
         await admin.RunFixedTripAsync(customer, driver, car, 1000);
 
+        // A month is paid only once it is over, so money received later in it is not lost.
+        var early = await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 6, driverIds = new[] { driver } });
+        Assert.Equal(HttpStatusCode.BadRequest, early.StatusCode);
+        Assert.False((await SalaryRowAsync(admin, driver, 2026, 6)).GetProperty("isPaid").GetBoolean());
+
+        factory.Clock.Now = new DateTime(2026, 7, 1, 9, 0, 0);
         var pay = await admin.PostAsJsonAsync("/api/Salaries/pay", new { year = 2026, month = 6, driverIds = new[] { driver } });
         Assert.Equal(HttpStatusCode.OK, pay.StatusCode);
         var paidRow = await SalaryRowAsync(admin, driver, 2026, 6);
         Assert.True(paidRow.GetProperty("isPaid").GetBoolean());
         Assert.Equal(2100, paidRow.GetProperty("totalSalary").GetDecimal());
 
-        // Later trips and edits do not change a paid salary.
-        await admin.RunFixedTripAsync(customer, driver, car, 1000);
+        // Later changes and edits do not change a paid salary.
+        (await admin.PutAsJsonAsync("/api/Salaries/settings", new { defaultCommissionPercent = 20 })).EnsureSuccessStatusCode();
         Assert.Equal(2100, (await SalaryRowAsync(admin, driver, 2026, 6)).GetProperty("totalSalary").GetDecimal());
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=6&year=2026", new { allowances = 500 })).StatusCode);
 

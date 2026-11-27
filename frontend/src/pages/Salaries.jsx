@@ -120,6 +120,7 @@ export default function Salaries() {
   const drivers = data?.drivers || [];
   const totals = data?.totals;
   const unpaidCount = drivers.filter(d => !d.isPaid).length;
+  const canPay = data?.canPay !== false;
 
   const numberCell = (d, field, placeholder) => (
     <td style={c}>
@@ -163,7 +164,7 @@ export default function Salaries() {
             />
           </div>
           <div className="no-print" style={{ display: 'flex', gap: '8px', marginRight: 'auto', marginTop: '14px' }}>
-            {unpaidCount > 0 && (
+            {unpaidCount > 0 && canPay && (
               <button className="btn btn-success" onClick={() => pay(null)}>صرف رواتب الشهر</button>
             )}
             <button className="btn btn-primary" onClick={() => window.print()}>طباعة</button>
@@ -222,8 +223,10 @@ export default function Salaries() {
                         <span className="badge badge-success">مصروف</span>
                         {isAdmin && <button className="btn" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={() => unpay(d.driverId)}>فتح</button>}
                       </div>
-                    ) : (
+                    ) : canPay ? (
                       <button className="btn btn-success" style={{ padding: '3px 8px', fontSize: '12px' }} onClick={() => pay([d.driverId])}>صرف</button>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>يُصرف بعد نهاية الشهر</span>
                     )}
                   </td>
                 </tr>

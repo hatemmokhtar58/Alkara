@@ -75,6 +75,7 @@ namespace api.Controllers
                 month = targetMonth,
                 year = targetYear,
                 defaultCommissionPercent = defaultPercent,
+                canPay = MonthHasEnded(targetYear, targetMonth),
                 drivers = rows,
                 totals = new
                 {
@@ -140,7 +141,11 @@ namespace api.Controllers
         [HttpPost("pay")]
         public async Task<IActionResult> Pay(PayRequest request)
         {
-            if (request.Month < 1 || request.Month > 12) return BadRequest(new { message = "الشهر غير صالح." });
+            if (request.Month < 1 || request.Month > 12 || request.Year < 2000 || request.Year > 2100)
+                return BadRequest(new { message = "الشهر أو السنة غير صالحة." });
+            // Money received later in the month still belongs to it, so a month is paid only once it is over.
+            if (!MonthHasEnded(request.Year, request.Month))
+                return BadRequest(new { message = "لا يمكن صرف راتب شهر لم ينتهِ بعد." });
 
             var rows = await CalculateAsync(request.Year, request.Month);
             var toPay = rows.Where(r => !r.IsPaid && (request.DriverIds == null || request.DriverIds.Count == 0 || request.DriverIds.Contains(r.DriverId))).ToList();
@@ -247,6 +252,8 @@ namespace api.Controllers
             }
             return record;
         }
+
+        private bool MonthHasEnded(int year, int month) => _clock.Now >= new DateTime(year, month, 1).AddMonths(1);
 
         public static decimal CommissionOn(decimal netIncome, decimal percent) =>
             netIncome > 0 ? Math.Round(netIncome * percent / 100m, 2, MidpointRounding.AwayFromZero) : 0;
