@@ -141,6 +141,53 @@ public class SalariesAndTimeTests
     }
 
     [Fact]
+    public async Task SalaryChange_AppliesFromItsMonthOn_AndEarlierMonthsKeepTheOldOne()
+    {
+        await using var factory = new AlkaraApiFactory();
+        factory.Clock.Now = new DateTime(2026, 10, 15, 12, 0, 0);
+        var admin = await factory.CreateAdminClientAsync();
+        var customer = await admin.CreateCustomerAsync();
+        var driver = await admin.CreateDriverAsync("أحمد", baseSalary: 3000);
+        var car = await admin.CreateCarAsync();
+        await admin.RunFixedTripAsync(customer, driver, car, 1000);
+        Assert.Equal(3100, (await SalaryRowAsync(admin, driver, 2026, 10)).GetProperty("totalSalary").GetDecimal());
+
+        // A raise decided in November, while October is still unpaid.
+        factory.Clock.Now = new DateTime(2026, 11, 5, 12, 0, 0);
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=11&year=2026", new { baseSalary = 3500, commissionPercent = 20 })).StatusCode);
+
+        var october = await SalaryRowAsync(admin, driver, 2026, 10);
+        Assert.Equal(3000, october.GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(10, october.GetProperty("commissionPercent").GetDecimal());
+        Assert.Equal(3100, october.GetProperty("totalSalary").GetDecimal());
+        var november = await SalaryRowAsync(admin, driver, 2026, 11);
+        Assert.Equal(3500, november.GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(20, november.GetProperty("commissionPercent").GetDecimal());
+        Assert.Equal(3500, (await SalaryRowAsync(admin, driver, 2026, 12)).GetProperty("baseSalary").GetDecimal());
+
+        // Changing a month that is already over changes that month only.
+        (await admin.PutAsJsonAsync($"/api/Salaries/{driver}?month=10&year=2026", new { baseSalary = 3200 })).EnsureSuccessStatusCode();
+        Assert.Equal(3300, (await SalaryRowAsync(admin, driver, 2026, 10)).GetProperty("totalSalary").GetDecimal());
+        Assert.Equal(3000, (await SalaryRowAsync(admin, driver, 2026, 9)).GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(3500, (await SalaryRowAsync(admin, driver, 2026, 11)).GetProperty("baseSalary").GetDecimal());
+
+        // The same for a driver with no change recorded after that month.
+        var other = await admin.CreateDriverAsync("خالد", baseSalary: 1000);
+        (await admin.PutAsJsonAsync($"/api/Salaries/{other}?month=9&year=2026", new { baseSalary = 800 })).EnsureSuccessStatusCode();
+        Assert.Equal(800, (await SalaryRowAsync(admin, other, 2026, 9)).GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(1000, (await SalaryRowAsync(admin, other, 2026, 10)).GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(1000, (await SalaryRowAsync(admin, other, 2026, 11)).GetProperty("baseSalary").GetDecimal());
+
+        // A salary edited on the drivers page applies from the current month.
+        (await admin.PutAsJsonAsync($"/api/Drivers/{other}", new { name = "خالد", phone = "0551234567", baseSalary = 1500 })).EnsureSuccessStatusCode();
+        Assert.Equal(1000, (await SalaryRowAsync(admin, other, 2026, 10)).GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(1500, (await SalaryRowAsync(admin, other, 2026, 11)).GetProperty("baseSalary").GetDecimal());
+        var drivers = await admin.GetFromJsonAsync<JsonElement>("/api/Drivers");
+        Assert.Equal(1500, drivers.EnumerateArray().Single(d => d.GetProperty("id").GetInt32() == other).GetProperty("baseSalary").GetDecimal());
+        Assert.Equal(3500, drivers.EnumerateArray().Single(d => d.GetProperty("id").GetInt32() == driver).GetProperty("baseSalary").GetDecimal());
+    }
+
+    [Fact]
     public async Task LateEveningWork_StaysOnItsOwnDayAndMonth()
     {
         await using var factory = new AlkaraApiFactory();

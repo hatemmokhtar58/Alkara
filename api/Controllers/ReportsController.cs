@@ -230,6 +230,7 @@ namespace api.Controllers
                 .Select(d => new { d.Id, d.Name, d.CommissionPercent }).ToListAsync();
             var customers = await _context.Customers.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name);
             var defaultPercent = await SalariesController.GetDefaultCommissionAsync(_context);
+            var rates = (await _context.DriverSalaryRates.AsNoTracking().ToListAsync()).ToLookup(r => r.DriverId);
 
             var trips = await _context.Trips.AsNoTracking()
                 .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= range.Start && t.EndTime < range.End)
@@ -247,7 +248,7 @@ namespace api.Controllers
                 var mine = inRange.Where(a => a.DriverId == d.Id).OrderBy(a => a.CollectedAt).ThenBy(a => a.TripDate).ToList();
                 var collected = mine.Sum(a => a.Amount);
                 var driverFuel = fuel.GetValueOrDefault(d.Id);
-                var percent = d.CommissionPercent ?? defaultPercent;
+                var percent = SalaryRates.For(rates[d.Id], range.Start.Year, range.Start.Month, 0, d.CommissionPercent).CommissionPercent ?? defaultPercent;
                 trips.TryGetValue(d.Id, out var t);
                 return new
                 {

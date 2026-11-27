@@ -18,6 +18,7 @@ namespace api.Models
         public DbSet<AppSetting> AppSettings { get; set; } = null!;
         public DbSet<DriverMonthlySalary> DriverMonthlySalaries { get; set; } = null!;
         public DbSet<SmsLog> SmsLogs { get; set; } = null!;
+        public DbSet<DriverSalaryRate> DriverSalaryRates { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -124,6 +125,13 @@ namespace api.Models
             modelBuilder.Entity<Driver>()
                 .Property(d => d.CommissionPercent)
                 .HasColumnType("decimal(5,2)");
+
+            modelBuilder.Entity<DriverSalaryRate>(rate =>
+            {
+                rate.HasIndex(r => new { r.DriverId, r.Year, r.Month }).IsUnique();
+                rate.Property(r => r.BaseSalary).HasColumnType("decimal(18,2)");
+                rate.Property(r => r.CommissionPercent).HasColumnType("decimal(5,2)");
+            });
 
             modelBuilder.Entity<WalletTransaction>()
                 .HasOne(w => w.Customer)

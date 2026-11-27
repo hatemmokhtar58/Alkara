@@ -12,6 +12,7 @@ const ENTITIES = {
   Expense: 'مصروف',
   WalletTransaction: 'حركة محفظة',
   DriverMonthlySalary: 'راتب',
+  DriverSalaryRate: 'راتب ونسبة السائق',
   AppSetting: 'إعداد',
   User: 'مستخدم'
 };

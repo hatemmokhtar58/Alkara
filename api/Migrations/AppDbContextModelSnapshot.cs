@@ -248,6 +248,37 @@ namespace api.Migrations
                     b.ToTable("DriverMonthlySalaries");
                 });
 
+            modelBuilder.Entity("api.Models.DriverSalaryRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BaseSalary")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("CommissionPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("DriverId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DriverId", "Year", "Month")
+                        .IsUnique();
+
+                    b.ToTable("DriverSalaryRates");
+                });
+
             modelBuilder.Entity("api.Models.Expense", b =>
                 {
                     b.Property<int>("Id")
@@ -514,6 +545,17 @@ namespace api.Migrations
                 });
 
             modelBuilder.Entity("api.Models.DriverMonthlySalary", b =>
+                {
+                    b.HasOne("api.Models.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Driver");
+                });
+
+            modelBuilder.Entity("api.Models.DriverSalaryRate", b =>
                 {
                     b.HasOne("api.Models.Driver", "Driver")
                         .WithMany()

@@ -89,7 +89,9 @@ namespace api.Controllers
 
             driver.Name = request.Name.Trim();
             driver.Phone = PhoneNumbers.NormalizeSaudiMobile(request.Phone)!;
-            driver.BaseSalary = request.BaseSalary;
+            // A new salary applies from this month on; earlier months keep the old one.
+            var now = _clock.Now;
+            await SalaryRates.SetAsync(_context, driver, now.Year, now.Month, request.BaseSalary, driver.CommissionPercent, now);
             await _context.SaveChangesAsync();
 
             return NoContent();

@@ -95,7 +95,8 @@ namespace api.Controllers
             });
         }
 
-        // PUT: api/Salaries/7?month=5&year=2026 - base salary and commission (driver level), allowances and deductions (this month)
+        // PUT: api/Salaries/7?month=5&year=2026 - base salary and commission (from this month on, see SalaryRates),
+        // allowances, deductions and days (this month)
         [HttpPut("{driverId:int}")]
         public async Task<IActionResult> UpdateDriverSalary(int driverId, [FromQuery] int month, [FromQuery] int year, SalaryUpdateRequest request)
         {
@@ -115,9 +116,12 @@ namespace api.Controllers
             if (record.IsPaid)
                 return BadRequest(new { message = "راتب هذا الشهر تم صرفه ولا يمكن تعديله." });
 
-            if (request.BaseSalary.HasValue) driver.BaseSalary = request.BaseSalary.Value;
-            if (request.UseDefaultCommission) driver.CommissionPercent = null;
-            else if (request.CommissionPercent.HasValue) driver.CommissionPercent = request.CommissionPercent;
+            var rates = await _context.DriverSalaryRates.AsNoTracking().Where(r => r.DriverId == driverId).ToListAsync();
+            var rate = SalaryRates.For(rates, year, month, driver.BaseSalary, driver.CommissionPercent);
+            await SalaryRates.SetAsync(_context, driver, year, month,
+                request.BaseSalary ?? rate.BaseSalary,
+                request.UseDefaultCommission ? null : request.CommissionPercent ?? rate.CommissionPercent,
+                _clock.Now);
 
             record.Allowances = request.Allowances;
             record.Deductions = request.Deductions;
@@ -254,9 +258,13 @@ namespace api.Controllers
                 .Select(g => new { DriverId = g.Key, Total = g.Sum(e => e.Amount) })
                 .ToDictionaryAsync(x => x.DriverId, x => x.Total);
 
+            var rates = (await context.DriverSalaryRates.AsNoTracking().ToListAsync()).ToLookup(r => r.DriverId);
+
             return drivers.Select(driver =>
             {
                 records.TryGetValue(driver.Id, out var record);
+                // The salary and commission in force in this month, not necessarily today's.
+                var rate = SalaryRates.For(rates[driver.Id], year, month, driver.BaseSalary, driver.CommissionPercent);
 
                 if (record is { IsPaid: true })
                 {
@@ -270,16 +278,16 @@ namespace api.Controllers
                 var totalIncome = collected.GetValueOrDefault(driver.Id) + carried;
                 var totalExpenses = fuel.GetValueOrDefault(driver.Id) + carriedFuel.GetValueOrDefault(driver.Id);
                 var netIncome = totalIncome - totalExpenses;
-                var percent = driver.CommissionPercent ?? defaultPercent;
+                var percent = rate.CommissionPercent ?? defaultPercent;
                 var commission = CommissionOn(netIncome, percent);
                 var allowances = record?.Allowances ?? 0;
                 var deductions = record?.Deductions ?? 0;
                 var workDays = record?.WorkDays ?? MonthDays;
-                var basePay = BasePayFor(driver.BaseSalary, workDays);
+                var basePay = BasePayFor(rate.BaseSalary, workDays);
                 var total = basePay + commission + allowances - deductions;
 
-                return new SalaryRow(driver.Id, driver.Name, driver.BaseSalary, totalIncome, totalExpenses, netIncome,
-                    percent, driver.CommissionPercent == null, commission, allowances, deductions, total,
+                return new SalaryRow(driver.Id, driver.Name, rate.BaseSalary, totalIncome, totalExpenses, netIncome,
+                    percent, rate.CommissionPercent == null, commission, allowances, deductions, total,
                     tripCounts.GetValueOrDefault(driver.Id), record?.Notes, false, null,
                     workDays, basePay, carried);
             }).ToList();
