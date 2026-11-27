@@ -5,7 +5,7 @@ import PeriodPicker from '../components/PeriodPicker';
 import PageTabs from '../components/PageTabs';
 import { usePeriod, periodQuery } from '../components/period';
 
-// Cash box movement for the period: cash trips, collections and deposits in, expenses out. The server does the math.
+// Cash box movement for the period: cash trips, collections and deposits in; expenses and refunds of cancelled trips out. The server does the math.
 export default function DailyReport({ period = 'daily' }) {
     const { t } = useTranslation();
     const currency = t('Dashboard.Currency');
@@ -115,7 +115,27 @@ export default function DailyReport({ period = 'daily' }) {
                             <td style={{ ...cell, fontWeight: 700, color: 'var(--danger-color)' }}>{money(report.totalExpenses)}</td>
                         </tr>
 
-                        {/* 4. Net */}
+                        {/* 4. Cash given back for finished trips that were cancelled in this period */}
+                        {(report.refunds || []).length > 0 && (
+                            <>
+                                {report.refunds.map((r, i) => (
+                                    <tr key={`ref-${r.tripId}`}>
+                                        <td style={cell}>{i + 1}</td>
+                                        <td style={cellR}>مبلغ مردود عن مشوار ملغي #{r.tripId}</td>
+                                        <td style={cellR}>{r.customerName || '-'}</td>
+                                        <td style={cell}>-</td>
+                                        <td style={{ ...cell, fontWeight: 600, color: 'var(--danger-color)' }}>{money(r.amount)}</td>
+                                    </tr>
+                                ))}
+                                <tr style={totalRow}>
+                                    <td style={cell} colSpan="3">إجمالي المبالغ المردودة</td>
+                                    <td style={cell}>-</td>
+                                    <td style={{ ...cell, fontWeight: 700, color: 'var(--danger-color)' }}>{money(report.totalRefunds)}</td>
+                                </tr>
+                            </>
+                        )}
+
+                        {/* 5. Net */}
                         <tr style={balanceRow}>
                             <td style={{ ...cell, border: 'none' }} colSpan="3">{netLabels[period]}</td>
                             <td style={{ ...cell, border: 'none', fontSize: '1.1rem' }} colSpan="2">{money(report.net)} {currency}</td>

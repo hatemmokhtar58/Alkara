@@ -119,28 +119,40 @@ public class ReportsTests
     }
 
     [Fact]
-    public async Task Cashbox_LeavesOutCollectionsOfACancelledTrip()
+    public async Task Cashbox_KeepsTheDayACancelledTripWasPaid_AndCountsTheRefundOnTheCancellationDay()
     {
         await using var factory = new AlkaraApiFactory();
         var admin = await factory.CreateAdminClientAsync();
         var customer = await admin.CreateCustomerAsync("عميل ملغي");
         var driver = await admin.CreateDriverAsync();
         var car = await admin.CreateCarAsync();
+        Task<JsonElement> Cashbox(int day) => admin.GetFromJsonAsync<JsonElement>($"/api/Reports/cashbox?period=daily&year=2026&month=5&day={day}");
 
         factory.Clock.Now = new DateTime(2026, 5, 10, 10, 0, 0);
         await admin.RunFixedTripAsync(customer, driver, car, 70, "Cash", paidAmount: 0); // old debt of 70
         var trip = await admin.RunFixedTripAsync(customer, driver, car, 150, "Cash", paidAmount: 100, collectionAmount: 20);
+        Assert.Equal(120, (await Cashbox(10)).GetProperty("net").GetDecimal());
 
-        var before = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=daily&year=2026&month=5&day=10");
-        Assert.Equal(120, before.GetProperty("net").GetDecimal());
-
+        // Cancelled the next day: the 100 and the 20 are given back, and the customer owes the 70 again.
+        factory.Clock.Now = new DateTime(2026, 5, 11, 9, 0, 0);
         (await admin.PostAsync($"/api/Trips/{trip.GetProperty("id").GetInt32()}/cancel?skipSms=true", null)).EnsureSuccessStatusCode();
-
-        // The customer owes the 70 again, so the cash box must not still count the 20.
         Assert.Equal(70, await admin.CustomerBalanceAsync(customer));
-        var after = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=daily&year=2026&month=5&day=10");
-        Assert.Equal(0, after.GetProperty("totalCollections").GetDecimal());
-        Assert.Equal(0, after.GetProperty("net").GetDecimal());
+
+        // The day the cash came in does not change...
+        var paidDay = await Cashbox(10);
+        Assert.Equal(100, paidDay.GetProperty("totalTrips").GetDecimal());
+        Assert.Equal(20, paidDay.GetProperty("totalCollections").GetDecimal());
+        Assert.Equal(0, paidDay.GetProperty("totalRefunds").GetDecimal());
+        Assert.Equal(120, paidDay.GetProperty("net").GetDecimal());
+
+        // ...the refund leaves the cash box on the day of the cancellation.
+        var cancelDay = await Cashbox(11);
+        Assert.Equal(120, cancelDay.GetProperty("totalRefunds").GetDecimal());
+        Assert.Equal(1, cancelDay.GetProperty("refunds").GetArrayLength());
+        Assert.Equal(-120, cancelDay.GetProperty("net").GetDecimal());
+
+        var month = await admin.GetFromJsonAsync<JsonElement>("/api/Reports/cashbox?period=monthly&year=2026&month=5");
+        Assert.Equal(0, month.GetProperty("net").GetDecimal());
     }
 
     [Fact]

@@ -38,12 +38,12 @@ namespace api.Controllers
                 .Where(t => t.Status == TripStatuses.Completed && t.EndTime >= start && t.EndTime < end)
                 .Select(t => new { t.FinalTotal, t.PaidAmount, t.PaymentMethod })
                 .ToListAsync();
-            var cashTrips = completed.Where(t => t.PaymentMethod == PaymentMethods.Cash).Sum(t => t.PaidAmount);
+            var cashTrips = await CashTrips(start, end).SumAsync(t => t.PaidAmount);
 
             var collections = -await _context.WalletTransactions.AsNoTracking()
                 .Where(w => (w.Type == WalletTypes.CashCollection || w.Type == WalletTypes.CashDeposit) && w.TransactionDate >= start && w.TransactionDate < end)
-                .Where(w => w.Trip == null || w.Trip.Status != TripStatuses.Cancelled) // a cancelled trip's money was reversed
                 .SumAsync(w => w.Amount);
+            var refunds = (await CashRefundsAsync(start, end)).Sum(r => r.Amount);
             var expenses = await _context.Expenses.AsNoTracking()
                 .Where(e => e.Date >= start && e.Date < end)
                 .SumAsync(e => e.Amount);
@@ -58,7 +58,7 @@ namespace api.Controllers
                 date = start,
                 tripsCount = completed.Count,
                 revenue = completed.Sum(t => t.FinalTotal),
-                cashNet = cashTrips + collections - expenses, // same as the daily cash box
+                cashNet = cashTrips + collections - expenses - refunds, // same as the daily cash box
                 debt = owing.Sum(),
                 customersOwing = owing.Count
             });
@@ -132,22 +132,20 @@ namespace api.Controllers
         }
 
         // GET: api/Reports/cashbox?period=daily&year=2026&month=10&day=2
-        // Cash in (cash trips, collections, deposits) and out (expenses) for the period.
+        // Cash in (cash trips, collections, deposits) and out (expenses, refunds of cancelled trips) for the period.
         [HttpGet("cashbox")]
         public async Task<ActionResult> GetCashbox([FromQuery] string? period, [FromQuery] int year, [FromQuery] int? month, [FromQuery] int? day)
         {
             var range = ReportPeriod.TryCreate(period, year, month, day, out var error);
             if (range == null) return BadRequest(new { message = error });
 
-            var cashTrips = await _context.Trips.AsNoTracking()
-                .Where(t => t.Status == TripStatuses.Completed && t.PaymentMethod == PaymentMethods.Cash && t.EndTime >= range.Start && t.EndTime < range.End)
+            var cashTrips = await CashTrips(range.Start, range.End)
                 .GroupBy(t => new { t.DriverId, Name = t.Driver != null ? t.Driver.Name : null })
                 .Select(g => new { g.Key.DriverId, g.Key.Name, Count = g.Count(), Total = g.Sum(t => t.PaidAmount) })
                 .ToListAsync();
 
             var collections = await _context.WalletTransactions.AsNoTracking()
                 .Where(w => (w.Type == WalletTypes.CashCollection || w.Type == WalletTypes.CashDeposit) && w.TransactionDate >= range.Start && w.TransactionDate < range.End)
-                .Where(w => w.Trip == null || w.Trip.Status != TripStatuses.Cancelled) // a cancelled trip's money was reversed
                 .OrderBy(w => w.TransactionDate).ThenBy(w => w.Id)
                 .Select(w => new { w.Id, w.Type, CustomerName = w.Customer.Name, Amount = -w.Amount, w.TransactionDate })
                 .ToListAsync();
@@ -161,6 +159,8 @@ namespace api.Controllers
             var totalTrips = cashTrips.Sum(t => t.Total);
             var totalCollections = collections.Sum(c => c.Amount);
             var totalExpenses = expenses.Sum(e => e.Total);
+            var refunds = await CashRefundsAsync(range.Start, range.End);
+            var totalRefunds = refunds.Sum(r => r.Amount);
 
             return Ok(new
             {
@@ -173,8 +173,45 @@ namespace api.Controllers
                 totalCollections,
                 expenses = expenses.Select(e => new { e.DriverId, driverName = e.Name ?? NoDriver, e.Count, e.Total }).OrderBy(e => e.DriverId == null).ThenBy(e => e.driverName),
                 totalExpenses,
-                net = totalTrips + totalCollections - totalExpenses
+                refunds,
+                totalRefunds,
+                net = totalTrips + totalCollections - totalExpenses - totalRefunds
             });
+        }
+
+        public record CashRefund(int TripId, string? CustomerName, DateTime CancelledAt, decimal Amount);
+
+        // Cash trips that ended in the range. A finished trip cancelled later still counts on the day it was
+        // paid, so past days never change; its refund is counted on the day of the cancellation instead.
+        private IQueryable<Trip> CashTrips(DateTime start, DateTime end) =>
+            _context.Trips.AsNoTracking()
+                .Where(t => t.PaymentMethod == PaymentMethods.Cash && t.EndTime >= start && t.EndTime < end
+                    && (t.Status == TripStatuses.Completed || (t.Status == TripStatuses.Cancelled && t.CancelledAt != null)));
+
+        // Cash given back for finished trips cancelled in the range: what was paid in cash for the trip
+        // plus any old debt collected in cash during it.
+        private async Task<List<CashRefund>> CashRefundsAsync(DateTime start, DateTime end)
+        {
+            var cancelled = await _context.Trips.AsNoTracking()
+                .Where(t => t.Status == TripStatuses.Cancelled && t.EndTime != null && t.CancelledAt >= start && t.CancelledAt < end)
+                .OrderBy(t => t.CancelledAt)
+                .Select(t => new { t.Id, CustomerName = t.Customer != null ? t.Customer.Name : null, CancelledAt = t.CancelledAt!.Value, t.PaymentMethod, t.PaidAmount })
+                .ToListAsync();
+            if (cancelled.Count == 0) return new List<CashRefund>();
+
+            var ids = cancelled.Select(t => t.Id).ToList();
+            var collected = (await _context.WalletTransactions.AsNoTracking()
+                    .Where(w => w.Type == WalletTypes.CashCollection && w.TripId != null && ids.Contains(w.TripId.Value))
+                    .Select(w => new { TripId = w.TripId!.Value, w.Amount })
+                    .ToListAsync())
+                .GroupBy(w => w.TripId)
+                .ToDictionary(g => g.Key, g => -g.Sum(w => w.Amount));
+
+            return cancelled
+                .Select(t => new CashRefund(t.Id, t.CustomerName, t.CancelledAt,
+                    (t.PaymentMethod == PaymentMethods.Cash ? t.PaidAmount : 0) + collected.GetValueOrDefault(t.Id)))
+                .Where(r => r.Amount > 0)
+                .ToList();
         }
 
         // GET: api/Reports/driver-earnings?period=monthly&year=2026&month=10

@@ -359,6 +359,7 @@ namespace api.Controllers
 
             var wasActive = trip.Status == TripStatuses.Ongoing;
             trip.Status = TripStatuses.Cancelled;
+            trip.CancelledAt = _clock.Now;
             await _context.SaveChangesAsync();
             if (wasActive) await ReleaseIfIdleAsync(trip.DriverId, trip.CarId);
             await _context.SaveChangesAsync();

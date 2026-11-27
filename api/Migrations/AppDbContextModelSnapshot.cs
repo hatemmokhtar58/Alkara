@@ -343,6 +343,9 @@ namespace api.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<int>("CarId")
                         .HasColumnType("int");
 

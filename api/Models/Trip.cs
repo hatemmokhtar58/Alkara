@@ -22,6 +22,7 @@ namespace api.Models
         public DateTime? DepartedAt { get; set; } // driver left the office to pick the customer up
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
+        public DateTime? CancelledAt { get; set; } // with EndTime set: a finished trip cancelled later, its cash refunded that day
 
         // Routing
         public string? PickupLocation { get; set; }
